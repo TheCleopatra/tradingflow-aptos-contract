@@ -1,14 +1,12 @@
 module tradingflow_vault::vault {
-    use std::string::{Self, String};
     use std::signer;
     use std::vector;
     use aptos_framework::account;
     use aptos_framework::event::{Self, EventHandle};
     use aptos_framework::fungible_asset::{Self, Metadata, FungibleAsset, FungibleStore};
-    use aptos_framework::object::{Self, Object};
+    use aptos_framework::object::Object;
     use aptos_framework::primary_fungible_store;
     use aptos_framework::table::{Self, Table};
-    use aptos_std::type_info;
     use aptos_std::simple_map::{Self, SimpleMap};
     
     use hyperion::router_v3;
@@ -105,7 +103,10 @@ module tradingflow_vault::vault {
         version: u64,
     }
     
-
+    /// Resource account signer capability
+    struct ResourceSignerCapability has key {
+        signer_cap: account::SignerCapability
+    }
 
     /// Initialize module
     fun init_module(account: &signer) {
@@ -129,6 +130,14 @@ module tradingflow_vault::vault {
         // Create version information
         move_to(account, Version {
             version: VERSION,
+        });
+        
+        // Create resource account with a seed
+        let (_, signer_cap) = account::create_resource_account(account, b"tradingflow_vault_seed");
+        
+        // Save the signer capability
+        move_to(account, ResourceSignerCapability { 
+            signer_cap
         });
     }
 
@@ -184,8 +193,8 @@ module tradingflow_vault::vault {
         move_to(user, balance_manager);
     }
 
-    /// User deposit using metadata object directly
-    public entry fun user_deposit_by_metadata(
+    /// User deposit function
+    public entry fun user_deposit(
         user: &signer,
         metadata: Object<Metadata>,
         amount: u64
@@ -202,10 +211,10 @@ module tradingflow_vault::vault {
         let user_store = primary_fungible_store::primary_store(user_addr, metadata);
         
         // Withdraw assets from user's store
-        let fa = fungible_asset::withdraw(user_store, amount);
+        let fa = fungible_asset::withdraw(user, user_store, amount);
         
         // Deposit to balance manager
-        deposit_internal_by_metadata(bm, fa);
+        deposit_internal(bm, fa);
         
         // Emit deposit event
         event::emit_event(&mut bm.deposit_events, UserDepositEvent {
@@ -215,12 +224,12 @@ module tradingflow_vault::vault {
         });
     }
 
-    /// User withdrawal using metadata object directly
-    public entry fun user_withdraw_by_metadata(
+    /// User withdrawal function
+    public entry fun user_withdraw(
         user: &signer,
         metadata: Object<Metadata>,
         amount: u64
-    ) acquires BalanceManager, Version {
+    ) acquires BalanceManager, Version, ResourceSignerCapability {
         let user_addr = signer::address_of(user);
         let version = borrow_global<Version>(@tradingflow_vault);
         assert!(version.version == VERSION, EVERSION_MISMATCHED);
@@ -230,7 +239,7 @@ module tradingflow_vault::vault {
         assert!(bm.owner == user_addr, ENOT_OWNER);
         
         // Withdraw tokens from balance manager
-        let fa = withdraw_internal_by_metadata(bm, metadata, amount);
+        let fa = withdraw_internal(bm, metadata, amount);
         
         // Emit withdrawal event
         event::emit_event(&mut bm.withdraw_events, UserWithdrawEvent {
@@ -244,22 +253,13 @@ module tradingflow_vault::vault {
         fungible_asset::deposit(user_store, fa);
     }
     
-    /// User withdrawal (legacy function, use user_withdraw_by_metadata instead)
-    public entry fun user_withdraw<CoinType>(
-        user: &signer,
-        amount: u64
-    ) acquires BalanceManager, Version {
-        let metadata = get_token_metadata<CoinType>();
-        user_withdraw_by_metadata(user, metadata, amount)
-    }
-
-    /// Bot withdrawal using metadata object directly
-    public entry fun bot_withdraw_by_metadata(
+    /// Bot withdrawal function
+    public entry fun bot_withdraw(
         bot: &signer,
         user_addr: address,
         metadata: Object<Metadata>,
         amount: u64
-    ) acquires BalanceManager, AccessList {
+    ) acquires BalanceManager, AccessList, ResourceSignerCapability {
         let bot_addr = signer::address_of(bot);
         
         // Verify bot is in whitelist
@@ -270,7 +270,7 @@ module tradingflow_vault::vault {
         let bm = borrow_global_mut<BalanceManager>(user_addr);
         
         // Withdraw tokens from balance manager
-        let fa = withdraw_internal_by_metadata(bm, metadata, amount);
+        let fa = withdraw_internal(bm, metadata, amount);
         
         // Emit bot withdrawal event
         event::emit_event(&mut bm.bot_withdraw_events, BotWithdrawEvent {
@@ -285,20 +285,11 @@ module tradingflow_vault::vault {
         fungible_asset::deposit(bot_store, fa);
     }
     
-    /// Bot withdrawal (legacy function, use bot_withdraw_by_metadata instead)
-    public entry fun bot_withdraw<CoinType>(
+    /// Bot deposit function
+    public entry fun bot_deposit(
         bot: &signer,
         user_addr: address,
-        amount: u64
-    ) acquires BalanceManager, AccessList {
-        let metadata = get_token_metadata<CoinType>();
-        bot_withdraw_by_metadata(bot, user_addr, metadata, amount)
-    }
-
-    /// Bot deposit
-    public entry fun bot_deposit<CoinType>(
-        bot: &signer,
-        user_addr: address,
+        metadata: Object<Metadata>,
         amount: u64,
         min: u64
     ) acquires BalanceManager, AccessList {
@@ -314,18 +305,20 @@ module tradingflow_vault::vault {
         // Get user's balance manager
         let bm = borrow_global_mut<BalanceManager>(user_addr);
         
-        // Withdraw tokens from bot account
-        let coin = coin::withdraw<CoinType>(bot, amount);
+        // Get bot's fungible store
+        let bot_store = primary_fungible_store::primary_store(bot_addr, metadata);
+        
+        // Withdraw assets from bot's store
+        let fa = fungible_asset::withdraw(bot, bot_store, amount);
         
         // Deposit to balance manager
-        deposit_internal<CoinType>(bm, coin);
+        deposit_internal(bm, fa);
         
         // Emit bot deposit event
-        let coin_type = type_info::type_name<CoinType>();
         event::emit_event(&mut bm.bot_deposit_events, BotDepositEvent {
             bot: bot_addr,
             user: user_addr,
-            coin_type: coin_type,
+            asset_metadata: metadata,
             amount: amount,
         });
     }
@@ -341,7 +334,7 @@ module tradingflow_vault::vault {
         sqrt_price_limit: u128,
         recipient: address,
         deadline: u64
-    ) acquires BalanceManager, Version {
+    ) acquires BalanceManager, Version, ResourceSignerCapability {
         let user_addr = signer::address_of(user);
         let version = borrow_global<Version>(@tradingflow_vault);
         assert!(version.version == VERSION, EVERSION_MISMATCHED);
@@ -351,11 +344,11 @@ module tradingflow_vault::vault {
         assert!(bm.owner == user_addr, ENOT_OWNER);
         
         // Check if balance is sufficient
-        let balance = get_balance_by_metadata(bm, from_token_metadata);
+        let balance = get_balance(bm, from_token_metadata);
         assert!(balance >= amount_in, EINSUFFICIENT_BALANCE);
         
         // Withdraw tokens from balance manager
-        let fa = withdraw_internal_by_metadata(bm, from_token_metadata, amount_in);
+        let fa = withdraw_internal(bm, from_token_metadata, amount_in);
         
         // Emit trade signal event
         event::emit_event(&mut bm.trade_signal_events, TradeSignalEvent {
@@ -385,8 +378,8 @@ module tradingflow_vault::vault {
         );
     }
 
-    /// Internal function: deposit tokens using metadata object directly
-    fun deposit_internal_by_metadata(bm: &mut BalanceManager, fa: FungibleAsset) {
+    /// Internal function: deposit tokens
+    fun deposit_internal(bm: &mut BalanceManager, fa: FungibleAsset) {
         let metadata = fungible_asset::asset_metadata(&fa);
         let amount = fungible_asset::amount(&fa);
         
@@ -405,13 +398,8 @@ module tradingflow_vault::vault {
         };
     }
     
-    /// Internal function: deposit tokens (legacy function, use deposit_internal_by_metadata instead)
-    fun deposit_internal<CoinType>(bm: &mut BalanceManager, fa: FungibleAsset) {
-        deposit_internal_by_metadata(bm, fa)
-    }
-
-    /// Internal function: withdraw tokens using metadata object directly
-    fun withdraw_internal_by_metadata(bm: &mut BalanceManager, metadata: Object<Metadata>, amount: u64): FungibleAsset {
+    /// Internal function: withdraw tokens
+    fun withdraw_internal(bm: &mut BalanceManager, metadata: Object<Metadata>, amount: u64): FungibleAsset acquires ResourceSignerCapability {
         // Check if balance is sufficient
         assert!(simple_map::contains_key(&bm.balances, &metadata), EINSUFFICIENT_BALANCE);
         let balance = *simple_map::borrow(&bm.balances, &metadata);
@@ -428,31 +416,15 @@ module tradingflow_vault::vault {
         // Withdraw tokens from vault
         let vault_addr = @tradingflow_vault;
         
-        // Use resource account signer to withdraw assets
-        let resource_signer = get_resource_signer();
-        
         // Get the vault's FungibleStore
         let store = primary_fungible_store::primary_store(vault_addr, metadata);
         
-        // Extract assets from the store
-        fungible_asset::withdraw_with_capability(
-            &fungible_asset::create_withdraw_capability(
-                &resource_signer,
-                store
-            ),
-            amount
-        )
+        // Use withdraw_with_resource_signer to withdraw assets
+        withdraw_with_resource_signer(store, amount)
     }
 
-    /// Internal function: withdraw tokens (legacy function, use withdraw_internal_by_metadata instead)
-    fun withdraw_internal<CoinType>(bm: &mut BalanceManager, amount: u64): FungibleAsset {
-        // Get the address of the coin type
-        let metadata = get_token_metadata<CoinType>();
-        withdraw_internal_by_metadata(bm, metadata, amount)
-    }
-
-    /// Get balance using metadata object directly
-    public fun get_balance_by_metadata(bm: &BalanceManager, metadata: Object<Metadata>): u64 {
+    /// Get balance
+    public fun get_balance(bm: &BalanceManager, metadata: Object<Metadata>): u64 {
         if (simple_map::contains_key(&bm.balances, &metadata)) {
             *simple_map::borrow(&bm.balances, &metadata)
         } else {
@@ -460,37 +432,18 @@ module tradingflow_vault::vault {
         }
     }
     
-    /// Get balance using coin type (legacy function, use get_balance_by_metadata instead)
-    public fun get_balance<CoinType>(bm: &BalanceManager): u64 {
-        let metadata = get_token_metadata<CoinType>();
-        get_balance_by_metadata(bm, metadata)
-    }
-    
-    /// Get token metadata object
-    /// This is a helper function to get the token metadata required by router_v3::exact_input_swap_entry
-    fun get_token_metadata<CoinType>(): Object<Metadata> {
-        // Use Fungible Asset standard to get token metadata objects
-        // In the Fungible Asset model, each token type has an associated metadata object
-        
-        // Get the address of the coin type
-        let coin_address = type_info::type_of<CoinType>().account_address;
-        
-        // Build the metadata object address
-        // Note: This assumes the token uses the primary_fungible_store standard and is already registered
-        // Actual implementation may need to be adjusted based on specific token registration methods
-        let metadata_address = object::create_object_address(&coin_address, b"metadata");
-        
-        // Convert address to metadata object
-        object::address_to_object<Metadata>(metadata_address)
-    }
-
     /// Get resource signer for the vault
     /// This function returns a signer for the vault's resource account
-    fun get_resource_signer(): signer {
-        // In a real implementation, you would retrieve the resource account's signer capability
-        // that was saved during initialization
-        // For now, we'll use a placeholder implementation
-        abort(1001) // Custom error code indicating unimplemented functionality
+    fun get_resource_signer(): signer acquires ResourceSignerCapability {
+        let cap = &borrow_global<ResourceSignerCapability>(@tradingflow_vault).signer_cap;
+        account::create_signer_with_capability(cap)
+    }
+    
+    /// Withdraw with resource signer
+    /// This function withdraws assets using the resource account signer
+    fun withdraw_with_resource_signer(store: Object<FungibleStore>, amount: u64): FungibleAsset acquires ResourceSignerCapability {
+        let resource_signer = get_resource_signer();
+        fungible_asset::withdraw(&resource_signer, store, amount)
     }
 
     /// Update version
