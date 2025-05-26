@@ -1,0 +1,23 @@
+[package]
+name = "tradingflow-aptos"
+version = "1.0.0"
+authors = []
+
+[addresses]
+tradingflow_vault = "_"
+hyperion = "0x796900ebe1a1a54ff9e932f19c548f5c1af5c6e7d34965857ac2f7b1d1ab2cbf"
+deployer = "0x796900ebe1a1a54ff9e932f19c548f5c1af5c6e7d34965857ac2f7b1d1ab2cbf"
+dex_contract = "0x796900ebe1a1a54ff9e932f19c548f5c1af5c6e7d34965857ac2f7b1d1ab2cbf"
+
+[dev-addresses]
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-framework.git"
+rev = "mainnet"
+subdir = "aptos-framework"
+
+[dependencies.dex]
+git = "https://github.com/Hyperfluid/hyperfluid-interface"
+rev = "main"
+
+[dev-dependencies]
