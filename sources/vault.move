@@ -324,8 +324,10 @@ module tradingflow_vault::vault {
     }
 
     /// Send trade signal and execute Hyperion DEX transaction
+    /// This function is called by whitelisted bots to execute trades on behalf of users
     public entry fun send_trade_signal(
-        user: &signer,
+        bot: &signer,
+        user_addr: address,
         from_token_metadata: Object<Metadata>,
         to_token_metadata: Object<Metadata>,
         fee_tier: u8,
@@ -334,14 +336,17 @@ module tradingflow_vault::vault {
         sqrt_price_limit: u128,
         recipient: address,
         deadline: u64
-    ) acquires BalanceManager, Version, ResourceSignerCapability {
-        let user_addr = signer::address_of(user);
+    ) acquires BalanceManager, Version, ResourceSignerCapability, AccessList {
+        // Verify bot is in whitelist
+        let bot_addr = signer::address_of(bot);
+        let acl = borrow_global<AccessList>(@tradingflow_vault);
+        assert!(table::contains(&acl.whitelist, bot_addr), ENOT_WHITELISTED);
+        
         let version = borrow_global<Version>(@tradingflow_vault);
         assert!(version.version == VERSION, EVERSION_MISMATCHED);
         
         // Get user's balance manager
         let bm = borrow_global_mut<BalanceManager>(user_addr);
-        assert!(bm.owner == user_addr, ENOT_OWNER);
         
         // Check if balance is sufficient
         let balance = get_balance(bm, from_token_metadata);
@@ -364,9 +369,12 @@ module tradingflow_vault::vault {
         let user_store = primary_fungible_store::ensure_primary_store_exists(user_addr, from_token_metadata);
         fungible_asset::deposit(user_store, fa);
         
+        // Get resource signer for DEX operations
+        let resource_signer = get_resource_signer();
+        
         // Now call the router with the correct parameters
         router_v3::exact_input_swap_entry(
-            user,
+            &resource_signer,
             fee_tier,
             amount_in,
             amount_out_min,
