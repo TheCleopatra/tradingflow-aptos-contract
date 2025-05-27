@@ -1,0 +1,25 @@
+{
+  "name": "tradingflow-aptos-ts-scripts",
+  "version": "1.0.0",
+  "description": "TypeScript scripts for interacting with TradingFlow Aptos contract",
+  "main": "index.js",
+  "scripts": {
+    "init-vault": "ts-node initVault.ts",
+    "deposit-coins": "ts-node depositCoins.ts",
+    "withdraw-coins": "ts-node withdrawCoins.ts",
+    "trade-signal": "ts-node tradeSignal.ts",
+    "admin-manage": "ts-node adminManage.ts"
+  },
+  "keywords": ["aptos", "tradingflow", "blockchain"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@aptos-labs/ts-sdk": "^1.0.0",
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^18.0.0",
+    "ts-node": "^10.9.0"
+  }
+}

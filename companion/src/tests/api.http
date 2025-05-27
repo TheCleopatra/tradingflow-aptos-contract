@@ -1,0 +1,94 @@
+### TradingFlow Companion API 测试
+@baseUrl = http://localhost:3000
+
+### 根路由测试
+# @name root
+GET {{baseUrl}}/
+Content-Type: application/json
+Accept: application/json
+
+### 响应验证
+# 验证响应状态码为200
+# 验证message字段为"TradingFlow Companion API"
+# 验证version字段存在
+# 验证endpoints字段是一个数组
+
+### Aptos 根路由测试
+# @name aptos_root
+GET {{baseUrl}}/aptos
+Content-Type: application/json
+Accept: application/json
+
+### 响应验证
+# 验证响应状态码为200
+# 验证message字段为"TradingFlow Aptos API"
+# 验证version字段存在
+# 验证endpoints字段是一个数组
+
+### 获取所有代币
+# @name get_all_tokens
+GET {{baseUrl}}/aptos/api/tokens
+Content-Type: application/json
+Accept: application/json
+
+### 响应验证
+# 验证响应状态码为200
+# 验证响应是一个数组
+# 验证每个代币对象包含address, name, symbol, decimals字段
+
+### 获取特定代币元数据
+# @name get_token_metadata
+# 注意: 需要替换为实际的代币元数据对象ID
+GET {{baseUrl}}/aptos/api/tokens/metadata/0x1
+Content-Type: application/json
+Accept: application/json
+
+### 响应验证
+# 验证响应状态码为200或404
+# 如果是200，验证响应包含address, name, symbol, decimals字段
+# 如果是404，验证error字段存在
+
+### 获取所有池子
+# @name get_all_pools
+GET {{baseUrl}}/aptos/api/pools
+Content-Type: application/json
+Accept: application/json
+
+### 响应验证
+# 验证响应状态码为200
+# 验证响应是一个数组
+# 验证每个池子对象包含poolId, token1, token2, feeTier字段
+
+### 获取特定池子
+# @name get_pool_by_id
+# 注意: 需要替换为实际的池子ID
+GET {{baseUrl}}/aptos/api/pools/0x123456
+Content-Type: application/json
+Accept: application/json
+
+### 响应验证
+# 验证响应状态码为200或404
+# 如果是200，验证响应包含poolId, token1, token2, feeTier字段
+# 如果是404，验证error字段存在
+
+### 根据代币对获取池子
+# @name get_pool_by_token_pair
+# 注意: 需要替换为实际的代币元数据对象ID
+GET {{baseUrl}}/aptos/api/pools/pair?token1=0x1&token2=0x2&feeTier=0
+Content-Type: application/json
+Accept: application/json
+
+### 响应验证
+# 验证响应状态码为200或404
+# 如果是200，验证响应包含poolId, token1, token2, feeTier字段
+# 如果是404，验证error字段存在
+
+### 测试无效路由
+# @name invalid_route
+GET {{baseUrl}}/invalid-route
+Content-Type: application/json
+Accept: application/json
+
+### 响应验证
+# 验证响应状态码为404
+# 验证error字段存在

@@ -1,18 +1,20 @@
 module tradingflow_vault::vault {
+    use std::string::{Self, String};
     use std::signer;
     use std::vector;
     use aptos_framework::account;
     use aptos_framework::event::{Self, EventHandle};
     use aptos_framework::fungible_asset::{Self, Metadata, FungibleAsset, FungibleStore};
-    use aptos_framework::object::Object;
+    use aptos_framework::object::{Self, Object};
     use aptos_framework::primary_fungible_store;
+    use aptos_framework::fungible_asset::metadata_from_type;
     use aptos_framework::table::{Self, Table};
     use aptos_std::simple_map::{Self, SimpleMap};
     
     use hyperion::router_v3;
 
     /// Contract version
-    const VERSION: u64 = 1;
+    const VERSION: u64 = 2;
     
     /// Error code: Not in whitelist
     const ENOT_WHITELISTED: u64 = 1001;
@@ -196,12 +198,15 @@ module tradingflow_vault::vault {
     /// User deposit function
     public entry fun user_deposit(
         user: &signer,
-        metadata: Object<Metadata>,
+        coin_type: String,
         amount: u64
     ) acquires BalanceManager, Version {
         let user_addr = signer::address_of(user);
         let version = borrow_global<Version>(@tradingflow_vault);
         assert!(version.version == VERSION, EVERSION_MISMATCHED);
+        
+        // Convert coin type to metadata object
+        let metadata = get_metadata_from_type(coin_type);
         
         // Get user's balance manager
         let bm = borrow_global_mut<BalanceManager>(user_addr);
@@ -223,16 +228,21 @@ module tradingflow_vault::vault {
             amount: amount,
         });
     }
+    
+
 
     /// User withdrawal function
     public entry fun user_withdraw(
         user: &signer,
-        metadata: Object<Metadata>,
+        coin_type: String,
         amount: u64
     ) acquires BalanceManager, Version, ResourceSignerCapability {
         let user_addr = signer::address_of(user);
         let version = borrow_global<Version>(@tradingflow_vault);
         assert!(version.version == VERSION, EVERSION_MISMATCHED);
+        
+        // Convert coin type to metadata object
+        let metadata = get_metadata_from_type(coin_type);
         
         // Get user's balance manager
         let bm = borrow_global_mut<BalanceManager>(user_addr);
@@ -253,11 +263,13 @@ module tradingflow_vault::vault {
         fungible_asset::deposit(user_store, fa);
     }
     
+
+    
     /// Bot withdrawal function
     public entry fun bot_withdraw(
         bot: &signer,
         user_addr: address,
-        metadata: Object<Metadata>,
+        coin_type: String,
         amount: u64
     ) acquires BalanceManager, AccessList, ResourceSignerCapability {
         let bot_addr = signer::address_of(bot);
@@ -265,6 +277,9 @@ module tradingflow_vault::vault {
         // Verify bot is in whitelist
         let acl = borrow_global<AccessList>(@tradingflow_vault);
         assert!(vector::contains(&acl.allow, &bot_addr), ENOT_WHITELISTED);
+        
+        // Convert coin type to metadata object
+        let metadata = get_metadata_from_type(coin_type);
         
         // Get user's balance manager
         let bm = borrow_global_mut<BalanceManager>(user_addr);
@@ -285,11 +300,13 @@ module tradingflow_vault::vault {
         fungible_asset::deposit(bot_store, fa);
     }
     
+
+    
     /// Bot deposit function
     public entry fun bot_deposit(
         bot: &signer,
         user_addr: address,
-        metadata: Object<Metadata>,
+        coin_type: String,
         amount: u64,
         min: u64
     ) acquires BalanceManager, AccessList {
@@ -301,6 +318,9 @@ module tradingflow_vault::vault {
         
         // Verify amount meets minimum requirement
         assert!(amount >= min, EBELOW_MIN_AMOUNT);
+        
+        // Convert coin type to metadata object
+        let metadata = get_metadata_from_type(coin_type);
         
         // Get user's balance manager
         let bm = borrow_global_mut<BalanceManager>(user_addr);
@@ -322,14 +342,16 @@ module tradingflow_vault::vault {
             amount: amount,
         });
     }
+    
+
 
     /// Send trade signal and execute Hyperion DEX transaction
     /// This function is called by whitelisted bots to execute trades on behalf of users
     public entry fun send_trade_signal(
         bot: &signer,
         user_addr: address,
-        from_token_metadata: Object<Metadata>,
-        to_token_metadata: Object<Metadata>,
+        from_token_type: String,
+        to_token_type: String,
         fee_tier: u8,
         amount_in: u64,
         amount_out_min: u64,
@@ -340,10 +362,14 @@ module tradingflow_vault::vault {
         // Verify bot is in whitelist
         let bot_addr = signer::address_of(bot);
         let acl = borrow_global<AccessList>(@tradingflow_vault);
-        assert!(table::contains(&acl.whitelist, bot_addr), ENOT_WHITELISTED);
+        assert!(vector::contains(&acl.allow, &bot_addr), ENOT_WHITELISTED);
         
         let version = borrow_global<Version>(@tradingflow_vault);
         assert!(version.version == VERSION, EVERSION_MISMATCHED);
+        
+        // Convert coin types to metadata objects
+        let from_token_metadata = get_metadata_from_type(from_token_type);
+        let to_token_metadata = get_metadata_from_type(to_token_type);
         
         // Get user's balance manager
         let bm = borrow_global_mut<BalanceManager>(user_addr);
@@ -385,6 +411,8 @@ module tradingflow_vault::vault {
             deadline
         );
     }
+    
+
 
     /// Internal function: deposit tokens
     fun deposit_internal(bm: &mut BalanceManager, fa: FungibleAsset) {
@@ -432,12 +460,20 @@ module tradingflow_vault::vault {
     }
 
     /// Get balance
-    public fun get_balance(bm: &BalanceManager, metadata: Object<Metadata>): u64 {
+    public fun get_balance(bm: &BalanceManager, coin_type: String): u64 {
+        let metadata = get_metadata_from_type(coin_type);
         if (simple_map::contains_key(&bm.balances, &metadata)) {
             *simple_map::borrow(&bm.balances, &metadata)
         } else {
             0
         }
+    }
+    
+
+    
+    /// Convert coin type string to metadata object
+    public fun get_metadata_from_type(coin_type: String): Object<Metadata> {
+        metadata_from_type(coin_type)
     }
     
     /// Get resource signer for the vault
@@ -468,5 +504,12 @@ module tradingflow_vault::vault {
     #[test_only]
     public fun init_for_testing(account: &signer) {
         init_module(account);
+    }
+    
+    /// Get balance (for testing only)
+    #[test_only]
+    public fun test_get_balance(user_addr: address, coin_type: String): u64 acquires BalanceManager {
+        let bm = borrow_global<BalanceManager>(user_addr);
+        get_balance(bm, coin_type)
     }
 }
