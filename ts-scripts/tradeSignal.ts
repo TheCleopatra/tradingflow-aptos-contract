@@ -1,6 +1,6 @@
 import { Aptos, AccountAddress } from "@aptos-labs/ts-sdk";
 import { BOT_PRIVATE_KEY } from "./config";
-import { createAptosClient, createAccountFromPrivateKey, getContractAddress, waitForTransaction, getMetadataObjectId } from "./utils";
+import { createAptosClient, createAccountFromPrivateKey, getContractAddress, waitForTransaction, TOKEN_METADATA } from "./utils";
 
 /**
  * 交易信号脚本
@@ -8,8 +8,8 @@ import { createAptosClient, createAccountFromPrivateKey, getContractAddress, wai
  * 允许白名单中的机器人代表用户在 Hyperion DEX 上执行交易
  * 
  * @param userAddress 用户地址
- * @param fromTokenType 源代币类型，例如 "0x1::aptos_coin::AptosCoin"
- * @param toTokenType 目标代币类型，例如 "0x1::aptos_coin::AptosCoin"
+ * @param fromTokenMetadataId 源代币元数据对象 ID，例如 "0x000000000000000000000000000000000000000000000000000000000000000a"
+ * @param toTokenMetadataId 目标代币元数据对象 ID
  * @param feeTier 费率等级 (0-3)
  * @param amountIn 输入金额
  * @param amountOutMin 最小输出金额
@@ -19,8 +19,8 @@ import { createAptosClient, createAccountFromPrivateKey, getContractAddress, wai
  */
 async function tradeSignal(
   userAddress: string,
-  fromTokenType: string,
-  toTokenType: string,
+  fromTokenMetadataId: string,
+  toTokenMetadataId: string,
   feeTier: number,
   amountIn: number,
   amountOutMin: number,
@@ -37,21 +37,14 @@ async function tradeSignal(
     
     console.log(`机器人地址: ${bot.accountAddress}`);
     console.log(`用户地址: ${userAddress}`);
-    console.log(`源代币类型: ${fromTokenType}`);
-    console.log(`目标代币类型: ${toTokenType}`);
+    console.log(`源代币元数据对象 ID: ${fromTokenMetadataId}`);
+    console.log(`目标代币元数据对象 ID: ${toTokenMetadataId}`);
     console.log(`输入金额: ${amountIn}`);
     console.log(`最小输出金额: ${amountOutMin}`);
     
     // 将用户地址和接收者地址转换为AccountAddress对象
     const userAccountAddress = AccountAddress.from(userAddress);
     const recipientAddress = AccountAddress.from(recipient);
-    
-    // 获取代币的元数据对象 ID
-    console.log("正在获取代币元数据对象 ID...");
-    const fromTokenMetadataId = await getMetadataObjectId(aptos, fromTokenType);
-    const toTokenMetadataId = await getMetadataObjectId(aptos, toTokenType);
-    console.log(`源代币元数据对象 ID: ${fromTokenMetadataId}`);
-    console.log(`目标代币元数据对象 ID: ${toTokenMetadataId}`);
     
     // 构建交易
     const transaction = await aptos.transaction.build.simple({
@@ -92,15 +85,18 @@ async function tradeSignal(
 if (require.main === module) {
   const args = process.argv.slice(2);
   if (args.length < 9) {
-    console.error("用法: pnpm ts-node tradeSignal.ts <用户地址> <源代币类型> <目标代币类型> <费率等级> <输入金额> <最小输出金额> <价格限制> <接收者地址> <截止时间戳>");
-    console.error("示例: pnpm ts-node tradeSignal.ts 0x123...abc 0x1::aptos_coin::AptosCoin 0x1::usdc::USDC 1 100 95 0 0x123...abc " + Math.floor(Date.now() / 1000 + 3600));
-    console.error("注意: 脚本会自动将代币类型转换为元数据对象 ID");
+    console.error("用法: pnpm ts-node tradeSignal.ts <用户地址> <源代币元数据对象ID> <目标代币元数据对象ID> <费率等级> <输入金额> <最小输出金额> <价格限制> <接收者地址> <截止时间戳>");
+    console.error("示例: pnpm ts-node tradeSignal.ts 0x123...abc " + TOKEN_METADATA.APT + " " + TOKEN_METADATA.USDC + " 1 100 95 0 0x123...abc " + Math.floor(Date.now() / 1000 + 3600));
+    console.error("常用代币元数据对象 ID:");
+    console.error("  APT: " + TOKEN_METADATA.APT);
+    console.error("  USDC: " + TOKEN_METADATA.USDC);
+    console.error("  USDT: " + TOKEN_METADATA.USDT);
     process.exit(1);
   }
   
   const userAddress = args[0];
-  const fromTokenType = args[1];
-  const toTokenType = args[2];
+  const fromTokenMetadataId = args[1];
+  const toTokenMetadataId = args[2];
   const feeTier = parseInt(args[3], 10);
   const amountIn = parseInt(args[4], 10);
   const amountOutMin = parseInt(args[5], 10);
@@ -115,8 +111,8 @@ if (require.main === module) {
   
   tradeSignal(
     userAddress,
-    fromTokenType,
-    toTokenType,
+    fromTokenMetadataId,
+    toTokenMetadataId,
     feeTier,
     amountIn,
     amountOutMin,

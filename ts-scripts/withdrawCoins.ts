@@ -1,15 +1,15 @@
 import { Aptos, AccountAddress } from "@aptos-labs/ts-sdk";
 import { USER_PRIVATE_KEY } from "./config";
-import { createAptosClient, createAccountFromPrivateKey, getContractAddress, waitForTransaction, getMetadataObjectId } from "./utils";
+import { createAptosClient, createAccountFromPrivateKey, getContractAddress, waitForTransaction, TOKEN_METADATA } from "./utils";
 
 /**
  * 用户提款脚本
  * 对应 Move 函数: user_withdraw
  * 
- * @param coinType 代币类型，例如 "0x1::aptos_coin::AptosCoin"
+ * @param metadataId 代币元数据对象 ID，例如 "0x000000000000000000000000000000000000000000000000000000000000000a"
  * @param amount 提款金额
  */
-export async function withdrawCoins(coinType: string, amount: number) {
+export async function withdrawCoins(metadataId: string, amount: number) {
   try {
     // 创建 Aptos 客户端
     const aptos = createAptosClient();
@@ -18,19 +18,15 @@ export async function withdrawCoins(coinType: string, amount: number) {
     const user = createAccountFromPrivateKey(USER_PRIVATE_KEY);
     
     console.log(`用户地址: ${user.accountAddress}`);
-    console.log(`代币类型: ${coinType}`);
+    console.log(`元数据对象 ID: ${metadataId}`);
     console.log(`提款金额: ${amount}`);
-    
-    // 获取代币的元数据对象 ID
-    const metadataObjectId = await getMetadataObjectId(aptos, coinType);
-    console.log(`使用元数据对象 ID: ${metadataObjectId}`);
     
     // 构建交易
     const transaction = await aptos.transaction.build.simple({
       sender: user.accountAddress,
       data: {
         function: `${getContractAddress()}::vault::user_withdraw`,
-        functionArguments: [metadataObjectId, amount],
+        functionArguments: [metadataId, amount],
       },
     });
     

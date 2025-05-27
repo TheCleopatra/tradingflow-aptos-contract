@@ -13,7 +13,7 @@ module tradingflow_vault::vault {
     use hyperion::router_v3;
 
     /// Contract version
-    const VERSION: u64 = 2;
+    const VERSION: u64 = 1;
     
     /// Error code: Not in whitelist
     const ENOT_WHITELISTED: u64 = 1001;
@@ -381,14 +381,14 @@ module tradingflow_vault::vault {
         fungible_asset::deposit(resource_store, fa);
         
         // Execute swap on Hyperion DEX
-        router_v3::swap_exact_input(
+        router_v3::exact_input_swap_entry(
             &resource_signer,
-            from_token_metadata,
-            to_token_metadata,
             fee_tier,
             amount_in,
             amount_out_min,
             sqrt_price_limit,
+            from_token_metadata,
+            to_token_metadata,
             recipient,
             deadline
         );
