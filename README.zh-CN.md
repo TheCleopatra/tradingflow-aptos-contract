@@ -76,52 +76,78 @@ aptos move publish --named-addresses tradingflow_vault=<您的地址> --profile 
 aptos move publish --named-addresses tradingflow_vault=<您的地址> --profile <mainnet配置名称>
 ```
 
+### 角色分配
+
+在我们的部署中，我们使用了三个不同的账户，每个账户拥有不同的角色：
+
+- **cl2**：合约部署者和管理员，负责部署合约并管理白名单
+- **cl**：用户账户，用于存入和提取代币
+- **cl3**：机器人账户，在白名单中，可以代表用户执行交易
+
 ### 部署后操作流程
 
-1. **初始化金库**
+1. **初始化金库**（用户 cl 操作）
    ```bash
-   aptos move run-script --compiled-script-path scripts/init_vault.move --profile <配置名称>
+   pnpm ts-node ts-scripts/initVault.ts
    ```
 
-2. **存入代币**
+2. **存入代币**（用户 cl 操作）
    ```bash
-   aptos move run-script --compiled-script-path scripts/deposit_coins.move --args <代币元数据> <金额> --profile <配置名称>
+   pnpm ts-node ts-scripts/depositCoins.ts <代币类型> <金额>
+   # 例如：pnpm ts-node ts-scripts/depositCoins.ts 0x1::aptos_coin::AptosCoin 1000000
+   # 脚本会自动将代币类型转换为元数据对象 ID
    ```
 
-3. **提取代币**
+3. **提取代币**（用户 cl 操作）
    ```bash
-   aptos move run-script --compiled-script-path scripts/withdraw_coins.move --args <代币元数据> <金额> --profile <配置名称>
+   pnpm ts-node ts-scripts/withdrawCoins.ts <代币类型> <金额>
+   # 例如：pnpm ts-node ts-scripts/withdrawCoins.ts 0x1::aptos_coin::AptosCoin 1000000
+   # 脚本会自动将代币类型转换为元数据对象 ID
    ```
 
-4. **发送交易信号**
+4. **发送交易信号**（机器人 cl3 操作）
    ```bash
-   aptos move run-script --compiled-script-path scripts/trade_signal.move --args <参数...> --profile <配置名称>
+   pnpm ts-node ts-scripts/tradeSignal.ts <用户地址> <源代币类型> <目标代币类型> <费率等级> <输入金额> <最小输出金额> <价格限制> <接收者地址> <截止时间戳>
+   # 脚本会自动将代币类型转换为元数据对象 ID
    ```
 
-5. **管理白名单**
+5. **管理白名单**（管理员 cl2 操作）
    ```bash
-   aptos move run-script --compiled-script-path scripts/admin_manage.move --args <操作> <地址> --profile <配置名称>
+   pnpm ts-node ts-scripts/adminManage.ts <机器人地址> <操作类型: 0(添加) 或 1(移除)>
+   # 例如：pnpm ts-node ts-scripts/adminManage.ts 0x123...abc 0
    ```
 
 ## 合约功能详解
 
-### 用户功能
+### 代币元数据对象说明
+
+在 Aptos 区块链上，每个代币都有一个对应的元数据对象，表示为如下形式的字符串：
+
+```
+0x81214a80d82035a190fcb76b6ff3c0145161c3a9f33d137f2bbaee4cfec8a387
+```
+
+合约使用这些元数据对象 ID 来识别和处理代币。为了简化用户体验，我们的 TypeScript 脚本允许使用更友好的代币类型字符串（如 `0x1::aptos_coin::AptosCoin`），并在内部自动将其转换为对应的元数据对象 ID。
+
+### 用户功能（cl 账户）
 
 1. **创建余额管理器**：用户首次使用需要创建余额管理器
 2. **存入代币**：将代币存入金库
 3. **提取代币**：从金库中取回代币
-4. **发送交易信号**：通过 Hyperion DEX 执行交易
+4. **查询余额**：查询自己在金库中的各种代币余额
 
-### 管理员功能
+### 管理员功能（cl2 账户）
 
-1. **添加到白名单**：将地址添加到白名单
-2. **从白名单移除**：从白名单中移除地址
-3. **更新版本**：更新合约版本
+1. **部署合约**：将合约部署到 Aptos 区块链
+2. **添加到白名单**：将机器人地址添加到白名单
+3. **从白名单移除**：从白名单中移除机器人地址
+4. **更新版本**：更新合约版本
 
-### 机器人功能
+### 机器人功能（cl3 账户）
 
-1. **代表用户提款**：从用户金库中提取代币
-2. **代表用户存款**：向用户金库添加代币
+1. **发送交易信号**：代表用户通过 Hyperion DEX 执行交易
+2. **代表用户提款**：从用户金库中提取代币
+3. **代表用户存款**：向用户金库添加代币
 
 ## Hyperion DEX 集成
 
@@ -129,13 +155,20 @@ aptos move publish --named-addresses tradingflow_vault=<您的地址> --profile 
 
 - **精确输入交换**：指定输入金额并执行交易
 - **交易信号记录**：记录所有交易信号
+- **代币元数据对象支持**：合约使用元数据对象 ID（如 `0x81214a80d82035a190fcb76b6ff3c0145161c3a9f33d137f2bbaee4cfec8a387`），而脚本允许使用代币类型字符串（如 `0x1::aptos_coin::AptosCoin`）并自动转换
 
 ## 测试
 
 项目包含全面的测试套件，涵盖所有主要功能：
 
 ```bash
-aptos move test --named-addresses tradingflow_vault=<您的地址>
+aptos move test --named-addresses tradingflow_vault=<cl2的地址>
+```
+
+我们还提供了 TypeScript 脚本来测试合约功能：
+
+```bash
+pnpm ts-node ts-scripts/getBalances.ts  # 查询用户余额
 ```
 
 ## 安全考虑

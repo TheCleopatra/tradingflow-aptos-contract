@@ -22,11 +22,11 @@ export async function getAllTokens(): Promise<TokenMetadata[]> {
   try {
     // 使用 Hyperion SDK 获取所有池子
     const pools = await sdk.Pool.fetchAllPools();
-    
+
     // 从池子中提取唯一的代币
     const tokenSet = new Set<string>();
     const tokenMetadataMap = new Map<string, TokenMetadata>();
-    
+
     // 遍历所有池子，提取代币信息
     for (const pool of pools) {
       if (pool.token1 && !tokenSet.has(pool.token1)) {
@@ -36,7 +36,7 @@ export async function getAllTokens(): Promise<TokenMetadata[]> {
           tokenMetadataMap.set(pool.token1, metadata);
         }
       }
-      
+
       if (pool.token2 && !tokenSet.has(pool.token2)) {
         tokenSet.add(pool.token2);
         const metadata = await getTokenMetadata(pool.token2);
@@ -45,7 +45,7 @@ export async function getAllTokens(): Promise<TokenMetadata[]> {
         }
       }
     }
-    
+
     return Array.from(tokenMetadataMap.values());
   } catch (error) {
     console.error('获取代币列表失败:', error);
@@ -61,25 +61,25 @@ export async function getAllTokens(): Promise<TokenMetadata[]> {
 export async function getTokenMetadata(address: string): Promise<TokenMetadata | null> {
   try {
     // 初始化 Aptos 客户端
-    const config = new AptosConfig({ 
+    const config = new AptosConfig({
       network: Network.MAINNET,
       fullnode: process.env.APTOS_NODE_URL,
       indexer: process.env.APTOS_NODE_URL
     });
     const aptos = new Aptos(config);
-    
+
     // 查询代币元数据
     const resource = await aptos.getAccountResource({
       accountAddress: address,
       resourceType: "0x1::fungible_asset::Metadata",
     });
-    
+
     if (!resource || !('data' in resource)) {
       return null;
     }
-    
+
     const data = resource.data as any;
-    
+
     return {
       address,
       name: data.name || 'Unknown',
@@ -103,14 +103,14 @@ export async function getAptCoinMetadataId(): Promise<string | null> {
   try {
     // 尝试通过已知的 APT 代币类型获取元数据对象ID
     const pools = await sdk.Pool.fetchAllPools();
-    
+
     // 查找包含 APT 代币的池子
     for (const pool of pools) {
       if (pool.token1Symbol === 'APT' || pool.token2Symbol === 'APT') {
         return pool.token1Symbol === 'APT' ? pool.token1 : pool.token2;
       }
     }
-    
+
     return null;
   } catch (error) {
     console.error('获取 APT 代币元数据对象ID失败:', error);

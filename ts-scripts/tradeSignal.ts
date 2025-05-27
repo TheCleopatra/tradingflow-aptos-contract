@@ -1,6 +1,6 @@
 import { Aptos, AccountAddress } from "@aptos-labs/ts-sdk";
 import { BOT_PRIVATE_KEY } from "./config";
-import { createAptosClient, createAccountFromPrivateKey, getContractAddress, waitForTransaction } from "./utils";
+import { createAptosClient, createAccountFromPrivateKey, getContractAddress, waitForTransaction, getMetadataObjectId } from "./utils";
 
 /**
  * 交易信号脚本
@@ -46,6 +46,13 @@ async function tradeSignal(
     const userAccountAddress = AccountAddress.from(userAddress);
     const recipientAddress = AccountAddress.from(recipient);
     
+    // 获取代币的元数据对象 ID
+    console.log("正在获取代币元数据对象 ID...");
+    const fromTokenMetadataId = await getMetadataObjectId(aptos, fromTokenType);
+    const toTokenMetadataId = await getMetadataObjectId(aptos, toTokenType);
+    console.log(`源代币元数据对象 ID: ${fromTokenMetadataId}`);
+    console.log(`目标代币元数据对象 ID: ${toTokenMetadataId}`);
+    
     // 构建交易
     const transaction = await aptos.transaction.build.simple({
       sender: bot.accountAddress,
@@ -53,8 +60,8 @@ async function tradeSignal(
         function: `${getContractAddress()}::vault::send_trade_signal`,
         functionArguments: [
           userAccountAddress,
-          fromTokenType,
-          toTokenType,
+          fromTokenMetadataId,
+          toTokenMetadataId,
           feeTier,
           amountIn,
           amountOutMin,
@@ -87,6 +94,7 @@ if (require.main === module) {
   if (args.length < 9) {
     console.error("用法: pnpm ts-node tradeSignal.ts <用户地址> <源代币类型> <目标代币类型> <费率等级> <输入金额> <最小输出金额> <价格限制> <接收者地址> <截止时间戳>");
     console.error("示例: pnpm ts-node tradeSignal.ts 0x123...abc 0x1::aptos_coin::AptosCoin 0x1::usdc::USDC 1 100 95 0 0x123...abc " + Math.floor(Date.now() / 1000 + 3600));
+    console.error("注意: 脚本会自动将代币类型转换为元数据对象 ID");
     process.exit(1);
   }
   

@@ -1,10 +1,10 @@
 import { Aptos, AccountAddress } from "@aptos-labs/ts-sdk";
 import { USER_PRIVATE_KEY } from "./config";
-import { createAptosClient, createAccountFromPrivateKey, getContractAddress, waitForTransaction } from "./utils";
+import { createAptosClient, createAccountFromPrivateKey, getContractAddress, waitForTransaction, getMetadataObjectId } from "./utils";
 
 /**
  * 用户存款脚本
- * 对应 Move 函数: user_deposit_by_type
+ * 对应 Move 函数: user_deposit
  * 
  * @param coinType 代币类型，例如 "0x1::aptos_coin::AptosCoin"
  * @param amount 存款金额
@@ -21,12 +21,16 @@ export async function depositCoins(coinType: string, amount: number) {
     console.log(`代币类型: ${coinType}`);
     console.log(`存款金额: ${amount}`);
     
+    // 获取代币的元数据对象 ID
+    const metadataObjectId = await getMetadataObjectId(aptos, coinType);
+    console.log(`使用元数据对象 ID: ${metadataObjectId}`);
+    
     // 构建交易
     const transaction = await aptos.transaction.build.simple({
       sender: user.accountAddress,
       data: {
-        function: `${getContractAddress()}::vault::user_deposit_by_type`,
-        functionArguments: [coinType, amount],
+        function: `${getContractAddress()}::vault::user_deposit`,
+        functionArguments: [metadataObjectId, amount],
       },
     });
     
@@ -52,6 +56,7 @@ if (require.main === module) {
   if (args.length < 2) {
     console.error("用法: pnpm ts-node depositCoins.ts <代币类型> <金额>");
     console.error("示例: pnpm ts-node depositCoins.ts 0x1::aptos_coin::AptosCoin 100");
+    console.error("注意: 脚本会自动将代币类型转换为元数据对象 ID");
     process.exit(1);
   }
   
