@@ -59,6 +59,7 @@ module tradingflow_vault::vault {
         to_asset_metadata: Object<Metadata>,
         amount_in: u64,
         amount_out_min: u64,
+        amount_out: u64,
     }
 
     
@@ -141,8 +142,9 @@ module tradingflow_vault::vault {
         user: &signer,
         metadata: Object<Metadata>,
         amount: u64
-    ) acquires BalanceManager {
-        
+    ) acquires BalanceManager, ResourceSignerCapability {
+        let user_addr = signer::address_of(user);
+
         // Get user's balance manager
         let bm = borrow_global_mut<BalanceManager>(user_addr);
         assert!(bm.owner == user_addr, ENOT_OWNER);
@@ -157,7 +159,7 @@ module tradingflow_vault::vault {
         event::emit_event(&mut bm.deposit_events, UserDepositEvent {
             user: user_addr,
             asset_metadata: metadata,
-            amount: amount,
+            amount,
         });
     }
     
@@ -175,16 +177,16 @@ module tradingflow_vault::vault {
         
         // Withdraw tokens from balance manager
         let fa = withdraw_internal(bm, metadata, amount);
-        
+
+        // Withdraw to user
+        primary_fungible_store::deposit(user_addr, fa)
+
         // Emit withdrawal event
         event::emit_event(&mut bm.withdraw_events, UserWithdrawEvent {
             user: user_addr,
             asset_metadata: metadata,
-            amount: amount,
+            amount,
         });
-
-        // Withdraw to user
-        primary_fungible_store::deposit(user_addr, fa)
     }
     
     /// Admin withdrawal function
@@ -206,17 +208,17 @@ module tradingflow_vault::vault {
         // Withdraw tokens from balance manager
         let fa = withdraw_internal(bm, metadata, amount);
         
+        // Transfer tokens to admin
+        primary_fungible_store::deposit(admin_addr, fa);
+
         // Emit admin withdrawal event
         event::emit_event(&mut bm.admin_withdraw_events, AdminWithdrawEvent {
             admin: admin_addr,
             user: user_addr,
             asset_metadata: metadata,
-            amount: amount,
+            amount,
         });
-        
-        // Transfer tokens to admin
-        let admin_store = primary_fungible_store::ensure_primary_store_exists(admin_addr, metadata);
-        fungible_asset::deposit(admin_store, fa);
+
     }
     
     /// Admin deposit function
@@ -225,25 +227,18 @@ module tradingflow_vault::vault {
         user_addr: address,
         metadata: Object<Metadata>,
         amount: u64,
-        min: u64
-    ) acquires BalanceManager, AdminCap {
+    ) acquires BalanceManager, AdminCap, ResourceSignerCapability {
         let admin_addr = signer::address_of(admin);
         
         // Verify admin
         let admin_cap = borrow_global<AdminCap>(@tradingflow_vault);
         assert!(admin_cap.owner == admin_addr, ENOT_ADMIN);
         
-        // Verify amount is at least min
-        assert!(amount >= min, EBELOW_MIN_AMOUNT);
-        
         // Get user's balance manager
         let bm = borrow_global_mut<BalanceManager>(user_addr);
-        
-        // Get admin's fungible store
-        let admin_store = primary_fungible_store::primary_store(admin_addr, metadata);
-        
-        // Withdraw assets from admin's store
-        let fa = fungible_asset::withdraw(admin, admin_store, amount);
+
+        // Withdraw assets from admin
+        let fa = primary_fungible_store::withdraw(admin, metadata, amount);
         
         // Deposit to balance manager
         deposit_internal(bm, fa);
@@ -253,7 +248,7 @@ module tradingflow_vault::vault {
             admin: admin_addr,
             user: user_addr,
             asset_metadata: metadata,
-            amount: amount,
+            amount,
         });
     }
     
@@ -287,15 +282,6 @@ module tradingflow_vault::vault {
         // Withdraw tokens from balance manager
         let fa = withdraw_internal(bm, from_token_metadata, amount_in);
         
-        // Emit trade signal event
-        event::emit_event(&mut bm.trade_signal_events, TradeSignalEvent {
-            user: user_addr,
-            from_asset_metadata: from_token_metadata,
-            to_asset_metadata: to_token_metadata,
-            amount_in,
-            amount_out_min,
-        });
-        
         // Get resource signer
         let resource_signer = get_resource_signer();
         
@@ -305,8 +291,8 @@ module tradingflow_vault::vault {
         // Ensure resource account has a store for the from token
         let resource_store = primary_fungible_store::ensure_primary_store_exists(resource_addr, from_token_metadata);
 
-        // TODO:
-        // primary_fungible_store::balance()
+        //  Get to-token balance from resource account before dex-swap
+        let to_token_balance_before_swap = primary_fungible_store::balance(resource_addr, to_token_metadata);
 
         // Execute swap on Hyperion DEX
         router_v3::exact_input_swap_entry(
@@ -320,8 +306,41 @@ module tradingflow_vault::vault {
             recipient,
             deadline
         );
+
+        //  Get to-token balance from resource account after dex-swap and delta
+        let to_token_balance_after_swap = primary_fungible_store::balance(resource_addr, to_token_metadata);
+        let to_token_delta = to_token_balance_after_swap - to_token_balance_before_swap;
+
+        // Update to-token balance to balance manager
+        if (bm.balances.contains_key(&to_token_metadata)) {
+            let balance = bm.balances.borrow_mut(&to_token_metadata);
+            *balance += to_token_delta;
+        } else {
+            bm.balances.add(to_token_metadata, to_token_delta);
+        };
+
+        // Emit trade signal event
+        event::emit_event(&mut bm.trade_signal_events, TradeSignalEvent {
+            user: user_addr,
+            from_asset_metadata: from_token_metadata,
+            to_asset_metadata: to_token_metadata,
+            amount_in,
+            amount_out_min,
+            amount_out: to_token_delta,
+        });
     }
-    
+
+    // Get Resource Address
+    fun get_resource_addr():address acquires ResourceSignerCapability {
+        account::get_signer_capability_address(&ResourceSignerCapability[@tradingflow_vault].signer_cap)
+    }
+
+    /// Get resource signer for the vault
+    fun get_resource_signer(): signer acquires ResourceSignerCapability {
+        let cap = &borrow_global<ResourceSignerCapability>(@tradingflow_vault).signer_cap;
+        account::create_signer_with_capability(cap)
+    }
+
     /// Deposit to balance manager
     fun deposit_internal(bm: &mut BalanceManager, fa: FungibleAsset) acquires ResourceSignerCapability {
         let metadata = fungible_asset::asset_metadata(&fa);
@@ -338,11 +357,6 @@ module tradingflow_vault::vault {
             bm.balances.add(metadata, amount);
         };
     }
-
-    // Get Resource Address
-    fun get_resource_addr():address acquires ResourceSignerCapability {
-        account::get_signer_capability_address(&ResourceSignerCapability[@tradingflow_vault].signer_cap)
-    }
     
     /// Withdraw from balance manager
     fun withdraw_internal(bm: &mut BalanceManager, metadata: Object<Metadata>, amount: u64): FungibleAsset acquires ResourceSignerCapability {
@@ -355,7 +369,8 @@ module tradingflow_vault::vault {
         *balance -= amount;
 
         // Use withdraw_with_resource_signer to withdraw assets
-        withdraw_with_resource_signer(metadata, amount)
+        let resource_signer = get_resource_signer();
+        primary_fungible_store::withdraw(&resource_signer, metadata, amount)
     }
 
     /// Get balance
@@ -366,18 +381,6 @@ module tradingflow_vault::vault {
             0
         }
     }
-    
-    /// Get resource signer for the vault
-    /// This function returns a signer for the vault's resource account
-    fun get_resource_signer(): signer acquires ResourceSignerCapability {
-        let cap = &borrow_global<ResourceSignerCapability>(@tradingflow_vault).signer_cap;
-        account::create_signer_with_capability(cap)
-    }
-    
-    /// Withdraw with resource signer
-    /// This function withdraws assets using the resource account signer
-    fun withdraw_with_resource_signer(metadata: Object<Metadata>,amount: u64): FungibleAsset acquires ResourceSignerCapability {
-        let resource_signer = get_resource_signer();
-        primary_fungible_store::withdraw(&resource_signer, metadata, amount)
-    }
+
+
 }

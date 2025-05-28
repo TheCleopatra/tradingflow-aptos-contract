@@ -1,11 +1,11 @@
 import { Aptos, AccountAddress } from "@aptos-labs/ts-sdk";
-import { BOT_PRIVATE_KEY } from "./config";
+import { ADMIN_PRIVATE_KEY } from "./config";
 import { createAptosClient, createAccountFromPrivateKey, getContractAddress, waitForTransaction, TOKEN_METADATA } from "./utils";
 
 /**
  * 交易信号脚本
  * 对应 Move 函数: send_trade_signal
- * 允许白名单中的机器人代表用户在 Hyperion DEX 上执行交易
+ * 允许管理员代表用户在 Hyperion DEX 上执行交易
  * 
  * @param userAddress 用户地址
  * @param fromTokenMetadataId 源代币元数据对象 ID，例如 "0x000000000000000000000000000000000000000000000000000000000000000a"
@@ -32,10 +32,10 @@ async function tradeSignal(
     // 创建 Aptos 客户端
     const aptos = createAptosClient();
     
-    // 创建机器人账户
-    const bot = createAccountFromPrivateKey(BOT_PRIVATE_KEY);
+    // 创建管理员账户
+    const admin = createAccountFromPrivateKey(ADMIN_PRIVATE_KEY);
     
-    console.log(`机器人地址: ${bot.accountAddress}`);
+    console.log(`管理员地址: ${admin.accountAddress}`);
     console.log(`用户地址: ${userAddress}`);
     console.log(`源代币元数据对象 ID: ${fromTokenMetadataId}`);
     console.log(`目标代币元数据对象 ID: ${toTokenMetadataId}`);
@@ -48,7 +48,7 @@ async function tradeSignal(
     
     // 构建交易
     const transaction = await aptos.transaction.build.simple({
-      sender: bot.accountAddress,
+      sender: admin.accountAddress,
       data: {
         function: `${getContractAddress()}::vault::send_trade_signal`,
         functionArguments: [
@@ -68,7 +68,7 @@ async function tradeSignal(
     // 签名并提交交易
     console.log("正在发送交易信号...");
     const committedTxn = await aptos.signAndSubmitTransaction({
-      signer: bot,
+      signer: admin,
       transaction,
     });
     
