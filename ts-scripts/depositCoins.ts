@@ -50,13 +50,17 @@ export async function depositCoins(metadataId: string, amount: number) {
 if (require.main === module) {
   const args = process.argv.slice(2);
   if (args.length < 2) {
-    console.error("用法: pnpm ts-node depositCoins.ts <代币类型> <金额>");
-    console.error("示例: pnpm ts-node depositCoins.ts 0x1::aptos_coin::AptosCoin 100");
-    console.error("注意: 脚本会自动将代币类型转换为元数据对象 ID");
+    console.error("用法: pnpm ts-node depositCoins.ts <元数据对象ID> <金额>");
+    console.error("示例: pnpm ts-node depositCoins.ts 0x000000000000000000000000000000000000000000000000000000000000000a 100");
+    console.error("常用代币元数据对象 ID:");
+    console.error("  APT: " + TOKEN_METADATA.APT);
+    console.error("  USDC: " + TOKEN_METADATA.USDC);
+    console.error("  USDT: " + TOKEN_METADATA.USDT);
+    console.error("  KING: " + TOKEN_METADATA.KING);
     process.exit(1);
   }
   
-  const coinType = args[0];
+  const metadataId = args[0];
   const amount = parseInt(args[1], 10);
   
   if (isNaN(amount)) {
@@ -64,7 +68,7 @@ if (require.main === module) {
     process.exit(1);
   }
   
-  depositCoins(coinType, amount);
+  depositCoins(metadataId, amount);
 }
 
 // 已在函数定义处导出

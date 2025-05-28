@@ -13,14 +13,14 @@ export async function withdrawCoins(metadataId: string, amount: number) {
   try {
     // 创建 Aptos 客户端
     const aptos = createAptosClient();
-    
+
     // 创建用户账户
     const user = createAccountFromPrivateKey(USER_PRIVATE_KEY);
-    
+
     console.log(`用户地址: ${user.accountAddress}`);
     console.log(`元数据对象 ID: ${metadataId}`);
     console.log(`提款金额: ${amount}`);
-    
+
     // 构建交易
     const transaction = await aptos.transaction.build.simple({
       sender: user.accountAddress,
@@ -29,17 +29,17 @@ export async function withdrawCoins(metadataId: string, amount: number) {
         functionArguments: [metadataId, amount],
       },
     });
-    
+
     // 签名并提交交易
     console.log("正在提款...");
     const committedTxn = await aptos.signAndSubmitTransaction({
       signer: user,
       transaction,
     });
-    
+
     // 等待交易完成
     await waitForTransaction(aptos, committedTxn.hash);
-    
+
     console.log(`提款成功！已从金库提取 ${amount} 单位的代币。`);
   } catch (error) {
     console.error("提款失败:", error);
@@ -50,21 +50,25 @@ export async function withdrawCoins(metadataId: string, amount: number) {
 if (require.main === module) {
   const args = process.argv.slice(2);
   if (args.length < 2) {
-    console.error("用法: pnpm ts-node withdrawCoins.ts <代币类型> <金额>");
-    console.error("示例: pnpm ts-node withdrawCoins.ts 0x1::aptos_coin::AptosCoin 100");
-    console.error("注意: 脚本会自动将代币类型转换为元数据对象 ID");
+    console.error("用法: pnpm ts-node withdrawCoins.ts <元数据对象ID> <金额>");
+    console.error("示例: pnpm ts-node withdrawCoins.ts 0x000000000000000000000000000000000000000000000000000000000000000a 100");
+    console.error("常用代币元数据对象 ID:");
+    console.error("  APT: " + TOKEN_METADATA.APT);
+    console.error("  USDC: " + TOKEN_METADATA.USDC);
+    console.error("  USDT: " + TOKEN_METADATA.USDT);
+    console.error("  KING: " + TOKEN_METADATA.KING);
     process.exit(1);
   }
-  
-  const coinType = args[0];
+
+  const metadataId = args[0];
   const amount = parseInt(args[1], 10);
-  
+
   if (isNaN(amount)) {
     console.error("提款金额必须是有效的数字");
     process.exit(1);
   }
-  
-  withdrawCoins(coinType, amount);
+
+  withdrawCoins(metadataId, amount);
 }
 
 // 已在函数定义处导出
