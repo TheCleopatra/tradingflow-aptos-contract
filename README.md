@@ -7,17 +7,15 @@ TradingFlow Aptos Smart Contract is a vault system designed specifically for the
 ### Key Features
 
 - **Fund Management**: Users can deposit and withdraw various tokens
-- **Whitelisted Bots**: Authorized bots can perform operations on behalf of users
+- **Bot Operations**: Bots can perform operations on behalf of users
 - **Trading Signals**: Users can send trading signals and execute trades on Hyperion DEX
 - **Event Logging**: All operations are recorded with detailed events
-- **Security Mechanisms**: Version control, permission management, and comprehensive error handling
 
 ## Technical Architecture
 
 The contract is written in Move language, optimized for the Aptos blockchain. Main components include:
 
 - **Vault Module**: Core vault functionality
-- **Access Control List**: Manages whitelisted bots
 - **Balance Manager**: Tracks user funds
 - **Hyperion Integration**: Interaction with Hyperion DEX
 
@@ -49,7 +47,7 @@ The project includes multiple scripts for easy interaction with the contract:
 - **deposit_coins.move**: Deposit tokens
 - **withdraw_coins.move**: Withdraw tokens
 - **trade_signal.move**: Send trading signals
-- **admin_manage.move**: Manage whitelist
+- **admin_manage.move**: Manage admin functions
 
 ## Contract Features in Detail
 
@@ -62,9 +60,8 @@ The project includes multiple scripts for easy interaction with the contract:
 
 ### Admin Functions
 
-1. **Add to Whitelist**: Add addresses to the whitelist
-2. **Remove from Whitelist**: Remove addresses from the whitelist
-3. **Update Version**: Update the contract version
+1. **Initialize Vault**: Set up the vault system
+2. **Manage Admin Capability**: Control who can perform admin operations
 
 ### Bot Functions
 
@@ -89,9 +86,14 @@ aptos move test --named-addresses tradingflow_vault=<YOUR_ADDRESS>
 ## Security Considerations
 
 - All critical operations have permission checks
-- Version control prevents incompatible updates
 - Comprehensive error code system for debugging
-- Supporter reward validation mechanism
+
+## Account Information
+
+The system uses two main accounts:
+
+1. **Admin Account**: Responsible for initializing the vault and managing admin functions
+2. **User Account**: Used for depositing and withdrawing tokens, and sending trade signals
 
 ## Contributing
 

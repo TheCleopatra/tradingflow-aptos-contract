@@ -1,7 +1,5 @@
 module tradingflow_vault::vault {
-    use std::string::String;
     use std::signer;
-    use std::vector;
     use aptos_framework::account;
     use aptos_framework::event::{Self, EventHandle};
     use aptos_framework::fungible_asset::{Self, Metadata, FungibleAsset, FungibleStore};
@@ -11,15 +9,6 @@ module tradingflow_vault::vault {
     use aptos_std::simple_map::{Self, SimpleMap};
     
     use hyperion::router_v3;
-
-    /// Contract version
-    const VERSION: u64 = 1;
-    
-    /// Error code: Not in whitelist
-    const ENOT_WHITELISTED: u64 = 1001;
-    
-    /// Error code: Version mismatch
-    const EVERSION_MISMATCHED: u64 = 1002;
     
     /// Error code: Admin only operation
     const ENOT_ADMIN: u64 = 1003;
@@ -29,7 +18,7 @@ module tradingflow_vault::vault {
     
     /// Error code: Insufficient balance
     const EINSUFFICIENT_BALANCE: u64 = 1005;
-    
+
     /// Error code: Below minimum amount
     const EBELOW_MIN_AMOUNT: u64 = 1006;
 
@@ -47,17 +36,17 @@ module tradingflow_vault::vault {
         amount: u64,
     }
     
-    /// Bot withdrawal event
-    struct BotWithdrawEvent has drop, store {
-        bot: address,
+    /// Admin withdrawal event
+    struct AdminWithdrawEvent has drop, store {
+        admin: address,
         user: address,
         asset_metadata: Object<Metadata>,
         amount: u64,
     }
     
-    /// Bot deposit event
-    struct BotDepositEvent has drop, store {
-        bot: address,
+    /// Admin deposit event
+    struct AdminDepositEvent has drop, store {
+        admin: address,
         user: address,
         asset_metadata: Object<Metadata>,
         amount: u64,
@@ -72,20 +61,15 @@ module tradingflow_vault::vault {
         amount_out_min: u64,
     }
 
-    /// Access control list
-    struct AccessList has key {
-        allow: vector<address>,
-    }
     
     /// Balance manager
     struct BalanceManager has key {
         owner: address,
-        // Use Object<Metadata> as keys instead of String type names
         balances: SimpleMap<Object<Metadata>, u64>,
         deposit_events: EventHandle<UserDepositEvent>,
         withdraw_events: EventHandle<UserWithdrawEvent>,
-        bot_deposit_events: EventHandle<BotDepositEvent>,
-        bot_withdraw_events: EventHandle<BotWithdrawEvent>,
+        admin_deposit_events: EventHandle<AdminDepositEvent>,
+        admin_withdraw_events: EventHandle<AdminWithdrawEvent>,
         trade_signal_events: EventHandle<TradeSignalEvent>,
     }
     
@@ -97,11 +81,6 @@ module tradingflow_vault::vault {
     /// Admin capability
     struct AdminCap has key {
         owner: address,
-    }
-    
-    /// Version information
-    struct Version has key {
-        version: u64,
     }
     
     /// Resource account signer capability
@@ -118,19 +97,9 @@ module tradingflow_vault::vault {
             owner: admin_addr,
         });
         
-        // Create access control list
-        move_to(account, AccessList {
-            allow: vector::empty(),
-        });
-        
         // Create record table
         move_to(account, Record {
             record: table::new(),
-        });
-        
-        // Create version information
-        move_to(account, Version {
-            version: VERSION,
         });
         
         // Create resource account with a seed
@@ -142,38 +111,11 @@ module tradingflow_vault::vault {
         });
     }
 
-    /// Add address to whitelist
-    public entry fun acl_add(admin: &signer, bot_address: address) acquires AdminCap, AccessList {
-        let admin_addr = signer::address_of(admin);
-        let admin_cap = borrow_global<AdminCap>(@tradingflow_vault);
-        assert!(admin_cap.owner == admin_addr, ENOT_ADMIN);
-        
-        let acl = borrow_global_mut<AccessList>(@tradingflow_vault);
-        if (!vector::contains(&acl.allow, &bot_address)) {
-            vector::push_back(&mut acl.allow, bot_address);
-        };
-    }
-    
-    /// Remove address from whitelist
-    public entry fun acl_remove(admin: &signer, bot_address: address) acquires AdminCap, AccessList {
-        let admin_addr = signer::address_of(admin);
-        let admin_cap = borrow_global<AdminCap>(@tradingflow_vault);
-        assert!(admin_cap.owner == admin_addr, ENOT_ADMIN);
-        
-        let acl = borrow_global_mut<AccessList>(@tradingflow_vault);
-        let (found, index) = vector::index_of(&acl.allow, &bot_address);
-        if (found) {
-            vector::remove(&mut acl.allow, index);
-        };
-    }
 
     /// Create balance manager
     public entry fun create_balance_manager(
         user: &signer
-    ) acquires Record, Version {
-        let user_addr = signer::address_of(user);
-        let version = borrow_global<Version>(@tradingflow_vault);
-        assert!(version.version == VERSION, EVERSION_MISMATCHED);
+    ) acquires Record {
         
         // Create balance manager
         let balance_manager = BalanceManager {
@@ -181,14 +123,14 @@ module tradingflow_vault::vault {
             balances: simple_map::create(),
             deposit_events: account::new_event_handle(user),
             withdraw_events: account::new_event_handle(user),
-            bot_deposit_events: account::new_event_handle(user),
-            bot_withdraw_events: account::new_event_handle(user),
+            admin_deposit_events: account::new_event_handle(user),
+            admin_withdraw_events: account::new_event_handle(user),
             trade_signal_events: account::new_event_handle(user),
         };
         
         // Record user's balance manager
         let record = borrow_global_mut<Record>(@tradingflow_vault);
-        table::add(&mut record.record, user_addr, user_addr);
+        record.record.add(user_addr, user_addr);
         
         // Move balance manager to user account
         move_to(user, balance_manager);
@@ -199,20 +141,14 @@ module tradingflow_vault::vault {
         user: &signer,
         metadata: Object<Metadata>,
         amount: u64
-    ) acquires BalanceManager, Version {
-        let user_addr = signer::address_of(user);
-        let version = borrow_global<Version>(@tradingflow_vault);
-        assert!(version.version == VERSION, EVERSION_MISMATCHED);
+    ) acquires BalanceManager {
         
         // Get user's balance manager
         let bm = borrow_global_mut<BalanceManager>(user_addr);
         assert!(bm.owner == user_addr, ENOT_OWNER);
-        
-        // Get user's fungible store
-        let user_store = primary_fungible_store::primary_store(user_addr, metadata);
-        
+
         // Withdraw assets from user's store
-        let fa = fungible_asset::withdraw(user, user_store, amount);
+        let fa = primary_fungible_store::withdraw(user, metadata, amount);
         
         // Deposit to balance manager
         deposit_internal(bm, fa);
@@ -230,10 +166,8 @@ module tradingflow_vault::vault {
         user: &signer,
         metadata: Object<Metadata>,
         amount: u64
-    ) acquires BalanceManager, Version, ResourceSignerCapability {
+    ) acquires BalanceManager, ResourceSignerCapability {
         let user_addr = signer::address_of(user);
-        let version = borrow_global<Version>(@tradingflow_vault);
-        assert!(version.version == VERSION, EVERSION_MISMATCHED);
         
         // Get user's balance manager
         let bm = borrow_global_mut<BalanceManager>(user_addr);
@@ -248,26 +182,23 @@ module tradingflow_vault::vault {
             asset_metadata: metadata,
             amount: amount,
         });
-        
-        // Get user's fungible store
-        let user_store = primary_fungible_store::ensure_primary_store_exists(user_addr, metadata);
-        
-        // Deposit assets to user's store
-        fungible_asset::deposit(user_store, fa);
+
+        // Withdraw to user
+        primary_fungible_store::deposit(user_addr, fa)
     }
     
-    /// Bot withdrawal function
-    public entry fun bot_withdraw(
-        bot: &signer,
+    /// Admin withdrawal function
+    public entry fun admin_withdraw(
+        admin: &signer,
         user_addr: address,
         metadata: Object<Metadata>,
         amount: u64
-    ) acquires BalanceManager, AccessList, ResourceSignerCapability {
-        let bot_addr = signer::address_of(bot);
+    ) acquires BalanceManager, ResourceSignerCapability, AdminCap {
+        let admin_addr = signer::address_of(admin);
         
-        // Verify bot is in whitelist
-        let acl = borrow_global<AccessList>(@tradingflow_vault);
-        assert!(vector::contains(&acl.allow, &bot_addr), ENOT_WHITELISTED);
+        // Verify admin
+        let admin_cap = borrow_global<AdminCap>(@tradingflow_vault);
+        assert!(admin_cap.owner == admin_addr, ENOT_ADMIN);
         
         // Get user's balance manager
         let bm = borrow_global_mut<BalanceManager>(user_addr);
@@ -275,32 +206,32 @@ module tradingflow_vault::vault {
         // Withdraw tokens from balance manager
         let fa = withdraw_internal(bm, metadata, amount);
         
-        // Emit bot withdrawal event
-        event::emit_event(&mut bm.bot_withdraw_events, BotWithdrawEvent {
-            bot: bot_addr,
+        // Emit admin withdrawal event
+        event::emit_event(&mut bm.admin_withdraw_events, AdminWithdrawEvent {
+            admin: admin_addr,
             user: user_addr,
             asset_metadata: metadata,
             amount: amount,
         });
         
-        // Transfer tokens to bot
-        let bot_store = primary_fungible_store::ensure_primary_store_exists(bot_addr, metadata);
-        fungible_asset::deposit(bot_store, fa);
+        // Transfer tokens to admin
+        let admin_store = primary_fungible_store::ensure_primary_store_exists(admin_addr, metadata);
+        fungible_asset::deposit(admin_store, fa);
     }
     
-    /// Bot deposit function
-    public entry fun bot_deposit(
-        bot: &signer,
+    /// Admin deposit function
+    public entry fun admin_deposit(
+        admin: &signer,
         user_addr: address,
         metadata: Object<Metadata>,
         amount: u64,
         min: u64
-    ) acquires BalanceManager, AccessList {
-        let bot_addr = signer::address_of(bot);
+    ) acquires BalanceManager, AdminCap {
+        let admin_addr = signer::address_of(admin);
         
-        // Verify bot is in whitelist
-        let acl = borrow_global<AccessList>(@tradingflow_vault);
-        assert!(vector::contains(&acl.allow, &bot_addr), ENOT_WHITELISTED);
+        // Verify admin
+        let admin_cap = borrow_global<AdminCap>(@tradingflow_vault);
+        assert!(admin_cap.owner == admin_addr, ENOT_ADMIN);
         
         // Verify amount is at least min
         assert!(amount >= min, EBELOW_MIN_AMOUNT);
@@ -308,18 +239,18 @@ module tradingflow_vault::vault {
         // Get user's balance manager
         let bm = borrow_global_mut<BalanceManager>(user_addr);
         
-        // Get bot's fungible store
-        let bot_store = primary_fungible_store::primary_store(bot_addr, metadata);
+        // Get admin's fungible store
+        let admin_store = primary_fungible_store::primary_store(admin_addr, metadata);
         
-        // Withdraw assets from bot's store
-        let fa = fungible_asset::withdraw(bot, bot_store, amount);
+        // Withdraw assets from admin's store
+        let fa = fungible_asset::withdraw(admin, admin_store, amount);
         
         // Deposit to balance manager
         deposit_internal(bm, fa);
         
-        // Emit bot deposit event
-        event::emit_event(&mut bm.bot_deposit_events, BotDepositEvent {
-            bot: bot_addr,
+        // Emit admin deposit event
+        event::emit_event(&mut bm.admin_deposit_events, AdminDepositEvent {
+            admin: admin_addr,
             user: user_addr,
             asset_metadata: metadata,
             amount: amount,
@@ -327,9 +258,9 @@ module tradingflow_vault::vault {
     }
     
     /// Send trade signal and execute Hyperion DEX transaction
-    /// This function is called by whitelisted bots to execute trades on behalf of users
+    /// This function is called by admin to execute trades on behalf of users
     public entry fun send_trade_signal(
-        bot: &signer,
+        admin: &signer,
         user_addr: address,
         from_token_metadata: Object<Metadata>,
         to_token_metadata: Object<Metadata>,
@@ -339,15 +270,12 @@ module tradingflow_vault::vault {
         sqrt_price_limit: u128,
         recipient: address,
         deadline: u64
-    ) acquires BalanceManager, Version, ResourceSignerCapability, AccessList {
-        // Verify bot is in whitelist
-        let bot_addr = signer::address_of(bot);
-        let acl = borrow_global<AccessList>(@tradingflow_vault);
-        assert!(vector::contains(&acl.allow, &bot_addr), ENOT_WHITELISTED);
+    ) acquires BalanceManager, ResourceSignerCapability, AdminCap {
+        let admin_addr = signer::address_of(admin);
         
-        // Verify version
-        let version = borrow_global<Version>(@tradingflow_vault);
-        assert!(version.version == VERSION, EVERSION_MISMATCHED);
+        // Verify admin
+        let admin_cap = borrow_global<AdminCap>(@tradingflow_vault);
+        assert!(admin_cap.owner == admin_addr, ENOT_ADMIN);
         
         // Get user's balance manager
         let bm = borrow_global_mut<BalanceManager>(user_addr);
@@ -364,8 +292,8 @@ module tradingflow_vault::vault {
             user: user_addr,
             from_asset_metadata: from_token_metadata,
             to_asset_metadata: to_token_metadata,
-            amount_in: amount_in,
-            amount_out_min: amount_out_min,
+            amount_in,
+            amount_out_min,
         });
         
         // Get resource signer
@@ -376,10 +304,10 @@ module tradingflow_vault::vault {
         
         // Ensure resource account has a store for the from token
         let resource_store = primary_fungible_store::ensure_primary_store_exists(resource_addr, from_token_metadata);
-        
-        // Deposit tokens to resource account
-        fungible_asset::deposit(resource_store, fa);
-        
+
+        // TODO:
+        // primary_fungible_store::balance()
+
         // Execute swap on Hyperion DEX
         router_v3::exact_input_swap_entry(
             &resource_signer,
@@ -395,50 +323,45 @@ module tradingflow_vault::vault {
     }
     
     /// Deposit to balance manager
-    fun deposit_internal(bm: &mut BalanceManager, fa: FungibleAsset) {
+    fun deposit_internal(bm: &mut BalanceManager, fa: FungibleAsset) acquires ResourceSignerCapability {
         let metadata = fungible_asset::asset_metadata(&fa);
         let amount = fungible_asset::amount(&fa);
-        
-        // Get resource signer
-        let resource_addr = @tradingflow_vault;
-        
-        // Ensure resource account has a store for the token
-        let resource_store = primary_fungible_store::ensure_primary_store_exists(resource_addr, metadata);
-        
+
         // Deposit assets to resource account
-        fungible_asset::deposit(resource_store, fa);
+        primary_fungible_store::deposit(get_resource_addr(), fa);
         
         // Update balance
-        if (simple_map::contains_key(&bm.balances, &metadata)) {
-            let balance = simple_map::borrow_mut(&mut bm.balances, &metadata);
-            *balance = *balance + amount;
+        if (bm.balances.contains_key(&metadata)) {
+            let balance = bm.balances.borrow_mut(&metadata);
+            *balance += amount;
         } else {
-            simple_map::add(&mut bm.balances, metadata, amount);
+            bm.balances.add(metadata, amount);
         };
+    }
+
+    // Get Resource Address
+    fun get_resource_addr():address acquires ResourceSignerCapability {
+        account::get_signer_capability_address(&ResourceSignerCapability[@tradingflow_vault].signer_cap)
     }
     
     /// Withdraw from balance manager
     fun withdraw_internal(bm: &mut BalanceManager, metadata: Object<Metadata>, amount: u64): FungibleAsset acquires ResourceSignerCapability {
         // Check if balance is sufficient
-        assert!(simple_map::contains_key(&bm.balances, &metadata), EINSUFFICIENT_BALANCE);
-        let balance = simple_map::borrow_mut(&mut bm.balances, &metadata);
+        assert!(bm.balances.contains_key(&metadata), EINSUFFICIENT_BALANCE);
+        let balance = bm.balances.borrow_mut(&metadata);
         assert!(*balance >= amount, EINSUFFICIENT_BALANCE);
         
         // Update balance
-        *balance = *balance - amount;
-        
-        // Get resource account store
-        let resource_addr = @tradingflow_vault;
-        let store = primary_fungible_store::primary_store(resource_addr, metadata);
-        
+        *balance -= amount;
+
         // Use withdraw_with_resource_signer to withdraw assets
-        withdraw_with_resource_signer(store, amount)
+        withdraw_with_resource_signer(metadata, amount)
     }
 
     /// Get balance
     public fun get_balance(bm: &BalanceManager, metadata: Object<Metadata>): u64 {
-        if (simple_map::contains_key(&bm.balances, &metadata)) {
-            *simple_map::borrow(&bm.balances, &metadata)
+        if (bm.balances.contains_key(&metadata)) {
+            *bm.balances.borrow(&metadata)
         } else {
             0
         }
@@ -453,8 +376,8 @@ module tradingflow_vault::vault {
     
     /// Withdraw with resource signer
     /// This function withdraws assets using the resource account signer
-    fun withdraw_with_resource_signer(store: Object<FungibleStore>, amount: u64): FungibleAsset acquires ResourceSignerCapability {
+    fun withdraw_with_resource_signer(metadata: Object<Metadata>,amount: u64): FungibleAsset acquires ResourceSignerCapability {
         let resource_signer = get_resource_signer();
-        fungible_asset::withdraw(&resource_signer, store, amount)
+        primary_fungible_store::withdraw(&resource_signer, metadata, amount)
     }
 }
