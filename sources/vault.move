@@ -117,6 +117,7 @@ module tradingflow_vault::vault {
     public entry fun create_balance_manager(
         user: &signer
     ) acquires Record {
+        let user_addr = signer::address_of(user);
         
         // Create balance manager
         let balance_manager = BalanceManager {
@@ -179,7 +180,7 @@ module tradingflow_vault::vault {
         let fa = withdraw_internal(bm, metadata, amount);
 
         // Withdraw to user
-        primary_fungible_store::deposit(user_addr, fa)
+        primary_fungible_store::deposit(user_addr, fa);
 
         // Emit withdrawal event
         event::emit_event(&mut bm.withdraw_events, UserWithdrawEvent {

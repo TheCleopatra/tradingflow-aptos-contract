@@ -11,10 +11,9 @@ export const NETWORK = Network.MAINNET;
 
 // 私钥配置 (从环境变量中获取，确保安全性)
 export const ADMIN_PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY || "";
-export const BOT_PRIVATE_KEY = process.env.BOT_PRIVATE_KEY || "";
 export const USER_PRIVATE_KEY = process.env.USER_PRIVATE_KEY || "";
 
 // 验证配置
-if (!ADMIN_PRIVATE_KEY || !BOT_PRIVATE_KEY || !USER_PRIVATE_KEY) {
-  console.warn("警告: 未设置所有必要的私钥环境变量。请在.env文件中设置ADMIN_PRIVATE_KEY, BOT_PRIVATE_KEY和USER_PRIVATE_KEY。");
+if (!ADMIN_PRIVATE_KEY || !USER_PRIVATE_KEY) {
+  console.warn("警告: 未设置所有必要的私钥环境变量。请在.env文件中设置ADMIN_PRIVATE_KEY和USER_PRIVATE_KEY。");
 }
