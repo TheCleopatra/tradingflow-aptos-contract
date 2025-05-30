@@ -23,6 +23,7 @@ module tradingflow_vault::vault {
     const EBELOW_MIN_AMOUNT: u64 = 1006;
 
     /// User deposit event
+    #[event]
     struct UserDepositEvent has drop, store {
         user: address,
         asset_metadata: Object<Metadata>,
@@ -30,6 +31,7 @@ module tradingflow_vault::vault {
     }
     
     /// User withdrawal event
+    #[event]
     struct UserWithdrawEvent has drop, store {
         user: address,
         asset_metadata: Object<Metadata>,
@@ -37,6 +39,7 @@ module tradingflow_vault::vault {
     }
     
     /// Admin withdrawal event
+    #[event]
     struct AdminWithdrawEvent has drop, store {
         admin: address,
         user: address,
@@ -45,6 +48,7 @@ module tradingflow_vault::vault {
     }
     
     /// Admin deposit event
+    #[event]
     struct AdminDepositEvent has drop, store {
         admin: address,
         user: address,
@@ -53,6 +57,7 @@ module tradingflow_vault::vault {
     }
     
     /// Trade signal event
+    #[event]
     struct TradeSignalEvent has drop, store {
         user: address,
         from_asset_metadata: Object<Metadata>,
@@ -67,11 +72,6 @@ module tradingflow_vault::vault {
     struct BalanceManager has key {
         owner: address,
         balances: SimpleMap<Object<Metadata>, u64>,
-        deposit_events: EventHandle<UserDepositEvent>,
-        withdraw_events: EventHandle<UserWithdrawEvent>,
-        admin_deposit_events: EventHandle<AdminDepositEvent>,
-        admin_withdraw_events: EventHandle<AdminWithdrawEvent>,
-        trade_signal_events: EventHandle<TradeSignalEvent>,
     }
     
     /// Record table
@@ -123,11 +123,6 @@ module tradingflow_vault::vault {
         let balance_manager = BalanceManager {
             owner: user_addr,
             balances: simple_map::create(),
-            deposit_events: account::new_event_handle(user),
-            withdraw_events: account::new_event_handle(user),
-            admin_deposit_events: account::new_event_handle(user),
-            admin_withdraw_events: account::new_event_handle(user),
-            trade_signal_events: account::new_event_handle(user),
         };
         
         // Record user's balance manager
@@ -157,7 +152,7 @@ module tradingflow_vault::vault {
         deposit_internal(bm, fa);
         
         // Emit deposit event
-        event::emit_event(&mut bm.deposit_events, UserDepositEvent {
+        0x1::event::emit(UserDepositEvent {
             user: user_addr,
             asset_metadata: metadata,
             amount,
@@ -183,7 +178,7 @@ module tradingflow_vault::vault {
         primary_fungible_store::deposit(user_addr, fa);
 
         // Emit withdrawal event
-        event::emit_event(&mut bm.withdraw_events, UserWithdrawEvent {
+        0x1::event::emit(UserWithdrawEvent {
             user: user_addr,
             asset_metadata: metadata,
             amount,
@@ -191,67 +186,67 @@ module tradingflow_vault::vault {
     }
     
     /// Admin withdrawal function
-    public entry fun admin_withdraw(
-        admin: &signer,
-        user_addr: address,
-        metadata: Object<Metadata>,
-        amount: u64
-    ) acquires BalanceManager, ResourceSignerCapability, AdminCap {
+    // public entry fun admin_withdraw(
+    //     admin: &signer,
+    //     user_addr: address,
+    //     metadata: Object<Metadata>,
+    //     amount: u64
+    // ) acquires BalanceManager, ResourceSignerCapability, AdminCap {
 
-        // Verify admin
-        let admin_addr = signer::address_of(admin);
-        let admin_cap = borrow_global<AdminCap>(@tradingflow_vault);
-        assert!(admin_cap.owner == admin_addr, ENOT_ADMIN);
+    //     // Verify admin
+    //     let admin_addr = signer::address_of(admin);
+    //     let admin_cap = borrow_global<AdminCap>(@tradingflow_vault);
+    //     assert!(admin_cap.owner == admin_addr, ENOT_ADMIN);
         
-        // Get user's balance manager
-        let bm = borrow_global_mut<BalanceManager>(user_addr);
+    //     // Get user's balance manager
+    //     let bm = borrow_global_mut<BalanceManager>(user_addr);
         
-        // Withdraw tokens from balance manager
-        let fa = withdraw_internal(bm, metadata, amount);
+    //     // Withdraw tokens from balance manager
+    //     let fa = withdraw_internal(bm, metadata, amount);
         
-        // Transfer tokens to admin
-        primary_fungible_store::deposit(admin_addr, fa);
+    //     // Transfer tokens to admin
+    //     primary_fungible_store::deposit(admin_addr, fa);
 
-        // Emit admin withdrawal event
-        event::emit_event(&mut bm.admin_withdraw_events, AdminWithdrawEvent {
-            admin: admin_addr,
-            user: user_addr,
-            asset_metadata: metadata,
-            amount,
-        });
+    //     // Emit admin withdrawal event
+    //     0x1::event::emit(AdminWithdrawEvent {
+    //         admin: admin_addr,
+    //         user: user_addr,
+    //         asset_metadata: metadata,
+    //         amount,
+    //     });
 
-    }
+    // }
     
     /// Admin deposit function
-    public entry fun admin_deposit(
-        admin: &signer,
-        user_addr: address,
-        metadata: Object<Metadata>,
-        amount: u64,
-    ) acquires BalanceManager, AdminCap, ResourceSignerCapability {
+    // public entry fun admin_deposit(
+    //     admin: &signer,
+    //     user_addr: address,
+    //     metadata: Object<Metadata>,
+    //     amount: u64,
+    // ) acquires BalanceManager, AdminCap, ResourceSignerCapability {
 
-        // Verify admin
-        let admin_addr = signer::address_of(admin);
-        let admin_cap = borrow_global<AdminCap>(@tradingflow_vault);
-        assert!(admin_cap.owner == admin_addr, ENOT_ADMIN);
+    //     // Verify admin
+    //     let admin_addr = signer::address_of(admin);
+    //     let admin_cap = borrow_global<AdminCap>(@tradingflow_vault);
+    //     assert!(admin_cap.owner == admin_addr, ENOT_ADMIN);
         
-        // Get user's balance manager
-        let bm = borrow_global_mut<BalanceManager>(user_addr);
+    //     // Get user's balance manager
+    //     let bm = borrow_global_mut<BalanceManager>(user_addr);
 
-        // Withdraw assets from admin
-        let fa = primary_fungible_store::withdraw(admin, metadata, amount);
+    //     // Withdraw assets from admin
+    //     let fa = primary_fungible_store::withdraw(admin, metadata, amount);
         
-        // Deposit to balance manager
-        deposit_internal(bm, fa);
+    //     // Deposit to balance manager
+    //     deposit_internal(bm, fa);
         
-        // Emit admin deposit event
-        event::emit_event(&mut bm.admin_deposit_events, AdminDepositEvent {
-            admin: admin_addr,
-            user: user_addr,
-            asset_metadata: metadata,
-            amount,
-        });
-    }
+    //     // Emit admin deposit event
+    //     0x1::event::emit(AdminDepositEvent {
+    //         admin: admin_addr,
+    //         user: user_addr,
+    //         asset_metadata: metadata,
+    //         amount,
+    //     });
+    // }
     
     /// Send trade signal and execute Hyperion DEX transaction
     /// This function is called by admin to execute trades on behalf of users
@@ -264,7 +259,6 @@ module tradingflow_vault::vault {
         amount_in: u64,
         amount_out_min: u64,
         sqrt_price_limit: u128,
-        recipient: address,
         deadline: u64
     ) acquires BalanceManager, ResourceSignerCapability, AdminCap {
 
@@ -322,7 +316,7 @@ module tradingflow_vault::vault {
         };
 
         // Emit trade signal event
-        event::emit_event(&mut bm.trade_signal_events, TradeSignalEvent {
+        0x1::event::emit(TradeSignalEvent {
             user: user_addr,
             from_asset_metadata: from_token_metadata,
             to_asset_metadata: to_token_metadata,
