@@ -1,6 +1,6 @@
 import { Aptos } from "@aptos-labs/ts-sdk";
-import { USER_PRIVATE_KEY } from "./config";
-import { createAptosClient, createAccountFromPrivateKey, getContractAddress, waitForTransaction } from "./utils";
+import { USER_PRIVATE_KEY } from "../config";
+import { createAptosClient, createAccountFromPrivateKey, getContractAddress, waitForTransaction } from "../utils/common";
 
 /**
  * 初始化用户的余额管理器

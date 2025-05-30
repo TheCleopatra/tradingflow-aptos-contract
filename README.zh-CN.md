@@ -85,11 +85,13 @@ aptos move publish --named-addresses tradingflow_vault=<您的地址> --profile 
 
 ### 部署后操作流程
 
-1. **初始化金库**（管理员 cl4 操作）
+1. **合约部署**（管理员 cl4 操作）
 
    ```bash
-   pnpm ts-node adminManage.ts 2
+   aptos move publish --named-addresses tradingflow_vault=<cl4的地址> --profile cl4
    ```
+   
+   注意：金库在合约部署时自动初始化，不需要额外的初始化操作。
 
 2. **用户初始化余额管理器**（用户 cl5 操作）
 
@@ -149,7 +151,7 @@ aptos move publish --named-addresses tradingflow_vault=<您的地址> --profile 
 
 合约直接使用这些元数据对象 ID 来识别和处理代币。我们的 TypeScript 脚本中已经预定义了常用代币的元数据对象 ID，可以在 `utils.ts` 中的 `TOKEN_METADATA` 常量中找到。
 
-### 用户功能（cl 账户）
+### 用户功能（cl5 账户）
 
 1. **创建余额管理器**：用户首次使用需要创建余额管理器
 2. **存入代币**：将代币存入金库
@@ -189,6 +191,11 @@ aptos move publish --named-addresses tradingflow_vault=<您的地址> --profile 
 
 我们提供了一组 TypeScript 脚本，用于与 TradingFlow Aptos 合约进行交互。这些脚本使用 Aptos TypeScript SDK 实现，替代了原有的 Move 脚本，提供更灵活的交互方式。
 
+脚本分为两个目录：
+
+- **core/**: 包含核心功能脚本，如初始化、存款、提款、交易信号等
+- **utils/**: 包含辅助工具脚本，如检查资源账户、确保 FungibleStore 存在等
+
 ### 环境设置
 
 1. 确保已安装 Node.js 和 npm
@@ -219,7 +226,7 @@ aptos move publish --named-addresses tradingflow_vault=<您的地址> --profile 
 初始化用户的余额管理器，这是用户与金库交互的第一步。
 
 ```bash
-pnpm ts-node initVault.ts
+pnpm ts-node core/initVault.ts
 ```
 
 #### 2. 用户存款 (depositCoins.ts)
@@ -227,12 +234,12 @@ pnpm ts-node initVault.ts
 将代币存入金库。
 
 ```bash
-pnpm ts-node depositCoins.ts <代币元数据对象ID> <存款金额>
+pnpm ts-node core/depositCoins.ts <代币元数据对象ID> <存款金额>
 ```
 
 例如：
 ```bash
-pnpm ts-node depositCoins.ts 0x000000000000000000000000000000000000000000000000000000000000000a 1000000
+pnpm ts-node core/depositCoins.ts 0x000000000000000000000000000000000000000000000000000000000000000a 1000000
 ```
 
 注意：代币元数据对象ID必须是有效的十六进制地址，而不是代币类型字符串。您可以使用 `getBalances.ts` 脚本获取可用的代币元数据对象ID。
@@ -242,12 +249,12 @@ pnpm ts-node depositCoins.ts 0x0000000000000000000000000000000000000000000000000
 从金库提取代币。
 
 ```bash
-pnpm ts-node withdrawCoins.ts <代币元数据对象ID> <提款金额>
+pnpm ts-node core/withdrawCoins.ts <代币元数据对象ID> <提款金额>
 ```
 
 例如：
 ```bash
-pnpm ts-node withdrawCoins.ts 0x000000000000000000000000000000000000000000000000000000000000000a 500000
+pnpm ts-node core/withdrawCoins.ts 0x000000000000000000000000000000000000000000000000000000000000000a 500000
 ```
 
 #### 4. 管理员代表用户发送交易信号 (tradeSignal.ts)
@@ -255,60 +262,48 @@ pnpm ts-node withdrawCoins.ts 0x000000000000000000000000000000000000000000000000
 管理员代表用户在 Hyperion DEX 上执行交易。
 
 ```bash
-pnpm ts-node tradeSignal.ts <用户地址> <源代币元数据ID> <目标代币元数据ID> <费率等级> <输入金额> <最小输出金额> <价格限制> <接收者地址> <截止时间戳>
+pnpm ts-node core/tradeSignal.ts <用户地址> <源代币元数据ID> <目标代币元数据ID> <费率等级> <输入金额> <最小输出金额> <价格限制> <接收者地址> <截止时间戳>
 ```
 
 例如：
 ```bash
-pnpm ts-node tradeSignal.ts 0xuser_address 0x000000000000000000000000000000000000000000000000000000000000000a 0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b 3 500000 450000 0 0xuser_address 9999999999
+pnpm ts-node core/tradeSignal.ts 0xuser_address 0x000000000000000000000000000000000000000000000000000000000000000a 0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b 3 500000 450000 0 0xuser_address 9999999999
 ```
 
-#### 5. 管理员初始化金库 (adminManage.ts)
 
-管理员初始化金库系统。
 
-```bash
-pnpm ts-node adminManage.ts <操作类型: 2(初始化金库)>
-```
-
-例如：
-```bash
-# 初始化金库
-pnpm ts-node adminManage.ts 2
-```
-
-#### 6. 管理员存款 (adminDeposit.ts)
+#### 5. 管理员存款 (adminDeposit.ts)
 
 管理员向用户的余额管理器中存入代币。
 
 ```bash
-pnpm ts-node adminDeposit.ts <用户地址> <代币元数据对象ID> <金额>
+pnpm ts-node core/adminDeposit.ts <用户地址> <代币元数据对象ID> <金额>
 ```
 
 例如：
 ```bash
-pnpm ts-node adminDeposit.ts 0x123...abc 0x000000000000000000000000000000000000000000000000000000000000000a 1000000
+pnpm ts-node core/adminDeposit.ts 0x123...abc 0x000000000000000000000000000000000000000000000000000000000000000a 1000000
 ```
 
-#### 7. 管理员提款 (adminWithdraw.ts)
+#### 6. 管理员提款 (adminWithdraw.ts)
 
 管理员从用户的余额管理器中提取代币。
 
 ```bash
-pnpm ts-node adminWithdraw.ts <用户地址> <代币元数据对象ID> <金额>
+pnpm ts-node core/adminWithdraw.ts <用户地址> <代币元数据对象ID> <金额>
 ```
 
 例如：
 ```bash
-pnpm ts-node adminWithdraw.ts 0x123...abc 0x000000000000000000000000000000000000000000000000000000000000000a 1000000
+pnpm ts-node core/adminWithdraw.ts 0x123...abc 0x000000000000000000000000000000000000000000000000000000000000000a 1000000
 ```
 
-#### 8. 查询用户余额 (getBalances.ts)
+#### 7. 查询用户余额 (getBalances.ts)
 
 查询用户在金库中的余额。
 
 ```bash
-pnpm ts-node getBalances.ts [用户地址]
+pnpm ts-node core/getBalances.ts [用户地址]
 ```
 
 如果不提供用户地址，则使用环境变量中的用户地址。
@@ -360,7 +355,7 @@ console.log(balances);
 项目包含全面的测试套件，涵盖所有主要功能：
 
 ```bash
-aptos move test --named-addresses tradingflow_vault=<cl2的地址>
+aptos move test --named-addresses tradingflow_vault=<cl4的地址>
 ```
 
 ## 安全考虑

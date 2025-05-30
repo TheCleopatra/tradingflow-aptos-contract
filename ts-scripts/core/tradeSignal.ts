@@ -1,6 +1,6 @@
 import { Aptos, AccountAddress } from "@aptos-labs/ts-sdk";
-import { ADMIN_PRIVATE_KEY } from "./config";
-import { createAptosClient, createAccountFromPrivateKey, getContractAddress, waitForTransaction, TOKEN_METADATA } from "./utils";
+import { ADMIN_PRIVATE_KEY } from "../config";
+import { createAptosClient, createAccountFromPrivateKey, getContractAddress, waitForTransaction, TOKEN_METADATA } from "../utils/common";
 
 /**
  * 交易信号脚本
@@ -85,8 +85,8 @@ async function tradeSignal(
 if (require.main === module) {
   const args = process.argv.slice(2);
   if (args.length < 9) {
-    console.error("用法: pnpm ts-node tradeSignal.ts <用户地址> <源代币元数据对象ID> <目标代币元数据对象ID> <费率等级> <输入金额> <最小输出金额> <价格限制> <接收者地址> <截止时间戳>");
-    console.error("示例: pnpm ts-node tradeSignal.ts 0x123...abc " + TOKEN_METADATA.APT + " " + TOKEN_METADATA.USDC + " 1 100 95 0 0x123...abc " + Math.floor(Date.now() / 1000 + 3600));
+    console.error("用法: pnpm ts-node core/tradeSignal.ts <用户地址> <源代币元数据对象ID> <目标代币元数据对象ID> <费率等级> <输入金额> <最小输出金额> <价格限制> <接收者地址> <截止时间戳>");
+    console.error("示例: pnpm ts-node core/tradeSignal.ts 0x123...abc " + TOKEN_METADATA.APT + " " + TOKEN_METADATA.USDC + " 1 100 95 0 0x123...abc " + Math.floor(Date.now() / 1000 + 3600));
     console.error("常用代币元数据对象 ID:");
     console.error("  APT: " + TOKEN_METADATA.APT);
     console.error("  USDC: " + TOKEN_METADATA.USDC);

@@ -1,5 +1,5 @@
 import { Aptos, AccountAddress } from "@aptos-labs/ts-sdk";
-import { createAptosClient, getContractAddress, TOKEN_METADATA } from "./utils";
+import { createAptosClient, getContractAddress, TOKEN_METADATA } from "../utils/common";
 
 /**
  * 检查资源账户信息
@@ -128,5 +128,10 @@ async function checkFungibleStore(aptos: Aptos, contractAddress: string, tokenNa
   }
 }
 
-// 执行检查
-checkResourceAccount();
+// 如果直接运行脚本
+if (require.main === module) {
+  checkResourceAccount();
+}
+
+// 导出函数以便其他脚本使用
+export { checkResourceAccount, checkFungibleStore };

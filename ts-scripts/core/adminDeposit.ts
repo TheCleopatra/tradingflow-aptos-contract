@@ -1,17 +1,17 @@
 import { Aptos, AccountAddress } from "@aptos-labs/ts-sdk";
-import { ADMIN_PRIVATE_KEY } from "./config";
-import { createAptosClient, createAccountFromPrivateKey, getContractAddress, waitForTransaction } from "./utils";
+import { ADMIN_PRIVATE_KEY } from "../config";
+import { createAptosClient, createAccountFromPrivateKey, getContractAddress, waitForTransaction } from "../utils/common";
 
 /**
- * 管理员提款脚本
- * 对应 Move 函数: admin_withdraw
- * 允许管理员从用户的余额管理器中提取代币
+ * 管理员存款脚本
+ * 对应 Move 函数: admin_deposit
+ * 允许管理员向用户的余额管理器中存入代币
  * 
  * @param userAddress 用户地址
  * @param metadataId 代币元数据对象 ID，例如 "0x000000000000000000000000000000000000000000000000000000000000000a"
- * @param amount 提款金额
+ * @param amount 存款金额
  */
-async function adminWithdraw(
+async function adminDeposit(
   userAddress: string,
   metadataId: string,
   amount: number
@@ -26,7 +26,7 @@ async function adminWithdraw(
     console.log(`管理员地址: ${admin.accountAddress}`);
     console.log(`用户地址: ${userAddress}`);
     console.log(`代币元数据对象 ID: ${metadataId}`);
-    console.log(`提款金额: ${amount}`);
+    console.log(`存款金额: ${amount}`);
     
     // 将用户地址转换为AccountAddress对象
     const userAccountAddress = AccountAddress.from(userAddress);
@@ -35,7 +35,7 @@ async function adminWithdraw(
     const transaction = await aptos.transaction.build.simple({
       sender: admin.accountAddress,
       data: {
-        function: `${getContractAddress()}::vault::admin_withdraw`,
+        function: `${getContractAddress()}::vault::admin_deposit`,
         functionArguments: [
           userAccountAddress,
           metadataId,
@@ -45,7 +45,7 @@ async function adminWithdraw(
     });
     
     // 签名并提交交易
-    console.log("正在执行管理员提款...");
+    console.log("正在执行管理员存款...");
     const committedTxn = await aptos.signAndSubmitTransaction({
       signer: admin,
       transaction,
@@ -54,9 +54,9 @@ async function adminWithdraw(
     // 等待交易完成
     await waitForTransaction(aptos, committedTxn.hash);
     
-    console.log(`管理员提款成功！已从用户 ${userAddress} 提取 ${amount} 单位的代币。`);
+    console.log(`管理员存款成功！已向用户 ${userAddress} 存入 ${amount} 单位的代币。`);
   } catch (error) {
-    console.error("管理员提款失败:", error);
+    console.error("管理员存款失败:", error);
   }
 }
 
@@ -64,8 +64,8 @@ async function adminWithdraw(
 if (require.main === module) {
   const args = process.argv.slice(2);
   if (args.length < 3) {
-    console.error("用法: pnpm ts-node adminWithdraw.ts <用户地址> <代币元数据对象ID> <金额>");
-    console.error("示例: pnpm ts-node adminWithdraw.ts 0x123...abc 0x000000000000000000000000000000000000000000000000000000000000000a 1000000");
+    console.error("用法: pnpm ts-node core/adminDeposit.ts <用户地址> <代币元数据对象ID> <金额>");
+    console.error("示例: pnpm ts-node core/adminDeposit.ts 0x123...abc 0x000000000000000000000000000000000000000000000000000000000000000a 1000000");
     process.exit(1);
   }
   
@@ -78,8 +78,8 @@ if (require.main === module) {
     process.exit(1);
   }
   
-  adminWithdraw(userAddress, metadataId, amount);
+  adminDeposit(userAddress, metadataId, amount);
 }
 
 // 导出函数以便其他脚本使用
-export { adminWithdraw };
+export { adminDeposit };

@@ -2,8 +2,8 @@ module tradingflow_vault::vault {
     use std::signer;
     use aptos_framework::account;
     use aptos_framework::event::{Self, EventHandle};
-    use aptos_framework::fungible_asset::{Self, Metadata, FungibleAsset, FungibleStore};
-    use aptos_framework::object::{Self, Object};
+    use aptos_framework::fungible_asset::{Self, Metadata, FungibleAsset};
+    use aptos_framework::object::{Object};
     use aptos_framework::primary_fungible_store;
     use aptos_framework::table::{Self, Table};
     use aptos_std::simple_map::{Self, SimpleMap};
@@ -197,9 +197,9 @@ module tradingflow_vault::vault {
         metadata: Object<Metadata>,
         amount: u64
     ) acquires BalanceManager, ResourceSignerCapability, AdminCap {
-        let admin_addr = signer::address_of(admin);
-        
+
         // Verify admin
+        let admin_addr = signer::address_of(admin);
         let admin_cap = borrow_global<AdminCap>(@tradingflow_vault);
         assert!(admin_cap.owner == admin_addr, ENOT_ADMIN);
         
@@ -229,9 +229,9 @@ module tradingflow_vault::vault {
         metadata: Object<Metadata>,
         amount: u64,
     ) acquires BalanceManager, AdminCap, ResourceSignerCapability {
-        let admin_addr = signer::address_of(admin);
-        
+
         // Verify admin
+        let admin_addr = signer::address_of(admin);
         let admin_cap = borrow_global<AdminCap>(@tradingflow_vault);
         assert!(admin_cap.owner == admin_addr, ENOT_ADMIN);
         
@@ -267,9 +267,9 @@ module tradingflow_vault::vault {
         recipient: address,
         deadline: u64
     ) acquires BalanceManager, ResourceSignerCapability, AdminCap {
-        let admin_addr = signer::address_of(admin);
-        
+
         // Verify admin
+        let admin_addr = signer::address_of(admin);
         let admin_cap = borrow_global<AdminCap>(@tradingflow_vault);
         assert!(admin_cap.owner == admin_addr, ENOT_ADMIN);
         
@@ -277,11 +277,12 @@ module tradingflow_vault::vault {
         let bm = borrow_global_mut<BalanceManager>(user_addr);
         
         // Check if balance is sufficient
-        let balance = get_balance(bm, from_token_metadata);
-        assert!(balance >= amount_in, EINSUFFICIENT_BALANCE);
-        
-        // Withdraw tokens from balance manager
-        let fa = withdraw_internal(bm, from_token_metadata, amount_in);
+        assert!(bm.balances.contains_key(&from_token_metadata), EINSUFFICIENT_BALANCE);
+        let balance = bm.balances.borrow_mut(&from_token_metadata);
+        assert!(*balance >= amount_in, EINSUFFICIENT_BALANCE);
+
+        // Update withdraw balance from balance manager
+        *balance -= amount_in;
         
         // Get resource signer
         let resource_signer = get_resource_signer();
@@ -290,7 +291,7 @@ module tradingflow_vault::vault {
         let resource_addr = signer::address_of(&resource_signer);
         
         // Ensure resource account has a store for the from token
-        let resource_store = primary_fungible_store::ensure_primary_store_exists(resource_addr, from_token_metadata);
+        // let resource_store = primary_fungible_store::ensure_primary_store_exists(resource_addr, from_token_metadata);
 
         //  Get to-token balance from resource account before dex-swap
         let to_token_balance_before_swap = primary_fungible_store::balance(resource_addr, to_token_metadata);
@@ -304,7 +305,7 @@ module tradingflow_vault::vault {
             sqrt_price_limit,
             from_token_metadata,
             to_token_metadata,
-            recipient,
+            resource_addr,
             deadline
         );
 
@@ -373,15 +374,5 @@ module tradingflow_vault::vault {
         let resource_signer = get_resource_signer();
         primary_fungible_store::withdraw(&resource_signer, metadata, amount)
     }
-
-    /// Get balance
-    public fun get_balance(bm: &BalanceManager, metadata: Object<Metadata>): u64 {
-        if (bm.balances.contains_key(&metadata)) {
-            *bm.balances.borrow(&metadata)
-        } else {
-            0
-        }
-    }
-
 
 }

@@ -8,12 +8,20 @@
 export * from './config';
 
 // 工具函数导出
-export * from './utils';
+export * from './utils/common';
 
-// 导出所有功能模块，方便其他应用引用
-export { initVault } from './initVault';
-export { depositCoins } from './depositCoins';
-export { withdrawCoins } from './withdrawCoins';
-export { tradeSignal } from './tradeSignal';
-export { adminManage, AdminAction } from './adminManage';
-export { getBalances } from './getBalances';
+// 导出核心功能模块，方便其他应用引用
+export { initVault } from './core/initVault';
+export { depositCoins } from './core/depositCoins';
+export { withdrawCoins } from './core/withdrawCoins';
+export { tradeSignal } from './core/tradeSignal';
+export { adminDeposit } from './core/adminDeposit';
+export { adminWithdraw } from './core/adminWithdraw';
+export { getBalances } from './core/getBalances';
+
+// 导出工具模块
+export { checkResourceAccount } from './utils/checkResourceAccount';
+export { ensureFungibleStore } from './utils/ensureFungibleStore';
+export { findPool } from './utils/findPool';
+export { runIntegrationTest } from './utils/integrationTest';
+export { checkBalanceManager } from './utils/checkBalanceManager';

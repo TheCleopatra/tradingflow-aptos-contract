@@ -1,6 +1,6 @@
 import { Aptos, AccountAddress } from "@aptos-labs/ts-sdk";
-import { USER_PRIVATE_KEY } from "./config";
-import { createAptosClient, createAccountFromPrivateKey, getContractAddress } from "./utils";
+import { USER_PRIVATE_KEY } from "../config";
+import { createAptosClient, createAccountFromPrivateKey, getContractAddress } from "../utils/common";
 
 /**
  * 查询用户在金库中的余额
@@ -124,9 +124,9 @@ async function getBalances(userAddress?: string): Promise<Record<string, Balance
           }
           
           console.log("\n使用说明:");
-          console.log("存款命令: pnpm ts-node depositCoins.ts <代币类型> <金额>");
-          console.log("提款命令: pnpm ts-node withdrawCoins.ts <代币类型> <金额>");
-          console.log("例如: pnpm ts-node depositCoins.ts 0x1::aptos_coin::AptosCoin 1000000");
+          console.log("存款命令: pnpm ts-node core/depositCoins.ts <代币类型> <金额>");
+          console.log("提款命令: pnpm ts-node core/withdrawCoins.ts <代币类型> <金额>");
+          console.log("例如: pnpm ts-node core/depositCoins.ts 0x1::aptos_coin::AptosCoin 1000000");
         } else {
           console.log("用户没有余额记录");
         }
