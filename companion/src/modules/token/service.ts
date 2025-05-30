@@ -1,5 +1,5 @@
-import { Aptos, AptosConfig, Network, AccountAddress } from '@aptos-labs/ts-sdk';
-import { sdk } from '../index';
+import { Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk';
+import { sdk } from '../../index';
 
 /**
  * 代币元数据接口

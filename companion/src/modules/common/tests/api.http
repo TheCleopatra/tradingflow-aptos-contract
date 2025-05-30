@@ -1,0 +1,36 @@
+### TradingFlow Companion API 通用测试
+@baseUrl = http://localhost:3000
+
+### 根路由测试
+# @name root
+GET {{baseUrl}}/
+Content-Type: application/json
+Accept: application/json
+
+### 响应验证
+# 验证响应状态码为200
+# 验证message字段为"TradingFlow Companion API"
+# 验证version字段存在
+# 验证endpoints字段是一个数组
+
+### Aptos 根路由测试
+# @name aptos_root
+GET {{baseUrl}}/aptos
+Content-Type: application/json
+Accept: application/json
+
+### 响应验证
+# 验证响应状态码为200
+# 验证message字段为"TradingFlow Aptos API"
+# 验证version字段存在
+# 验证endpoints字段是一个数组
+
+### 测试无效路由
+# @name invalid_route
+GET {{baseUrl}}/invalid-route
+Content-Type: application/json
+Accept: application/json
+
+### 响应验证
+# 验证响应状态码为404
+# 验证error字段存在

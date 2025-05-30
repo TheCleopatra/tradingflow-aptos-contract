@@ -1,0 +1,47 @@
+### TradingFlow Hyperion DEX API 测试
+@baseUrl = http://localhost:3000
+
+### 获取所有池子
+# @name get_all_pools
+GET {{baseUrl}}/aptos/api/pools
+Content-Type: application/json
+Accept: application/json
+
+### 响应验证
+# 验证响应状态码为200
+# 验证响应是一个数组
+# 验证每个池子对象包含poolId, token1, token2, feeTier字段
+
+### 获取特定池子
+# @name get_pool_by_id
+# 注意: 需要替换为实际的池子ID
+GET {{baseUrl}}/aptos/api/pools/0x123456
+Content-Type: application/json
+Accept: application/json
+
+### 响应验证
+# 验证响应状态码为200或404
+# 如果是200，验证响应包含poolId, token1, token2, feeTier字段
+# 如果是404，验证error字段存在
+
+### 根据代币对获取池子
+# @name get_pool_by_token_pair
+# 注意: 需要替换为实际的代币元数据对象ID
+GET {{baseUrl}}/aptos/api/pools/pair?token1=0x1&token2=0x2&feeTier=0
+Content-Type: application/json
+Accept: application/json
+
+### 响应验证
+# 验证响应状态码为200或404
+# 如果是200，验证响应包含poolId, token1, token2, feeTier字段
+# 如果是404，验证error字段存在
+
+### 获取所有池子中的 APT 代币信息
+# @name get_apt_pools
+GET {{baseUrl}}/aptos/api/pools
+Content-Type: application/json
+Accept: application/json
+
+### 响应验证
+# 查找响应中 token1Symbol 或 token2Symbol 为 "APT" 的池子
+# 记下对应的 token1 或 token2 值，这就是 APT 代币的元数据对象 ID

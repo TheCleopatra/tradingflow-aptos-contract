@@ -1,6 +1,5 @@
-import { FeeTierIndex } from '@hyperionxyz/sdk';
-import { sdk } from '../index';
-import { getTokenMetadata } from './tokenService';
+import { sdk } from '../../index';
+import { tokenService } from '../token';
 
 // 定义池子和代币类型
 interface TokenInfo {
@@ -97,8 +96,8 @@ export async function getPoolById(poolId: string): Promise<PoolInfo | null> {
     }
     
     // 获取代币元数据
-    const token1Metadata = await getTokenMetadata(pool.token1);
-    const token2Metadata = await getTokenMetadata(pool.token2);
+    const token1Metadata = await tokenService.getTokenMetadata(pool.token1);
+    const token2Metadata = await tokenService.getTokenMetadata(pool.token2);
     
     // 计算价格
     const token1Price = calculatePrice(pool.sqrtPrice, pool.token1Decimals, pool.token2Decimals, true);
@@ -135,7 +134,7 @@ export async function getPoolByTokenPair(
       throw new Error('无效的费率等级索引，必须是 0-3 之间的整数');
     }
     
-    // 将索引转换为 FeeTierIndex 枚举
+    // 将索引转换为费率等级
     let feeTier: number;
     
     // 根据索引选择费率等级

@@ -1,4 +1,4 @@
-### TradingFlow 代币元数据查询测试
+### TradingFlow Token API 测试
 @baseUrl = http://localhost:3000
 
 ### 获取所有代币
@@ -7,8 +7,22 @@ GET {{baseUrl}}/aptos/api/tokens
 Content-Type: application/json
 Accept: application/json
 
-### 从上面的响应中找到 APT 代币的元数据对象 ID
-# 通常 APT 代币的符号是 "APT"
+### 响应验证
+# 验证响应状态码为200
+# 验证响应是一个数组
+# 验证每个代币对象包含address, name, symbol, decimals字段
+
+### 获取特定代币元数据
+# @name get_token_metadata
+# 注意: 需要替换为实际的代币元数据对象ID
+GET {{baseUrl}}/aptos/api/tokens/metadata/0x1
+Content-Type: application/json
+Accept: application/json
+
+### 响应验证
+# 验证响应状态码为200或404
+# 如果是200，验证响应包含address, name, symbol, decimals字段
+# 如果是404，验证error字段存在
 
 ### 获取 APT 代币元数据
 # @name get_apt_metadata
@@ -30,14 +44,4 @@ Accept: application/json
 # 3. 将上面的 REPLACE_WITH_APT_TOKEN_ID 替换为该地址
 # 4. 运行 "获取 APT 代币元数据" 请求确认
 # 5. 使用确认的元数据对象 ID 运行 depositCoins.ts 脚本:
-#    npx ts-node depositCoins.ts <APT_TOKEN_METADATA_ID> 1000000
-
-### 获取所有池子中的 APT 代币信息
-# @name get_apt_pools
-GET {{baseUrl}}/aptos/api/pools
-Content-Type: application/json
-Accept: application/json
-
-### 响应验证
-# 查找响应中 token1Symbol 或 token2Symbol 为 "APT" 的池子
-# 记下对应的 token1 或 token2 值，这就是 APT 代币的元数据对象 ID
+#    npx ts-node core/depositCoins.ts <APT_TOKEN_METADATA_ID> 1000000

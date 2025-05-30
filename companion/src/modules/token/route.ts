@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getTokenMetadata, getAllTokens } from '../services';
+import * as tokenService from './service';
 
 const router = Router();
 
@@ -10,7 +10,7 @@ const router = Router();
  */
 router.get('/', async (req, res) => {
   try {
-    const tokens = await getAllTokens();
+    const tokens = await tokenService.getAllTokens();
     res.json(tokens);
   } catch (error) {
     console.error('获取代币列表失败:', error);
@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
 router.get('/metadata/:address', async (req, res) => {
   try {
     const { address } = req.params;
-    const metadata = await getTokenMetadata(address);
+    const metadata = await tokenService.getTokenMetadata(address);
     
     if (!metadata) {
       return res.status(404).json({ error: '未找到代币元数据' });
@@ -40,4 +40,4 @@ router.get('/metadata/:address', async (req, res) => {
   }
 });
 
-export const tokenRoutes = router;
+export default router;

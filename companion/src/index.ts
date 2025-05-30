@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { Network } from "@aptos-labs/ts-sdk";
 import { initHyperionSDK } from '@hyperionxyz/sdk';
-import { tokenRoutes, poolRoutes } from './routes';
+import { tokenRoute, hyperionDexRoute } from './modules';
 
 // 加载环境变量
 dotenv.config();
@@ -23,8 +23,8 @@ export const sdk = initHyperionSDK({
 });
 
 // 路由
-app.use('/aptos/api/tokens', tokenRoutes);
-app.use('/aptos/api/pools', poolRoutes);
+app.use('/aptos/api/tokens', tokenRoute);
+app.use('/aptos/api/pools', hyperionDexRoute);
 
 // 根路由
 app.get('/', (req, res) => {

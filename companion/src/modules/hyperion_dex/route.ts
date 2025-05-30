@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getAllPools, getPoolById, getPoolByTokenPair } from '../services';
+import * as hyperionDexService from './service';
 
 const router = Router();
 
@@ -10,7 +10,7 @@ const router = Router();
  */
 router.get('/', async (req, res) => {
   try {
-    const pools = await getAllPools();
+    const pools = await hyperionDexService.getAllPools();
     res.json(pools);
   } catch (error) {
     console.error('获取池子列表失败:', error);
@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
 router.get('/:poolId', async (req, res) => {
   try {
     const { poolId } = req.params;
-    const pool = await getPoolById(poolId);
+    const pool = await hyperionDexService.getPoolById(poolId);
     
     if (!pool) {
       return res.status(404).json({ error: '未找到池子' });
@@ -56,7 +56,7 @@ router.get('/pair', async (req, res) => {
       return res.status(400).json({ error: '缺少必要参数' });
     }
     
-    const pool = await getPoolByTokenPair(
+    const pool = await hyperionDexService.getPoolByTokenPair(
       token1.toString(),
       token2.toString(),
       parseInt(feeTier.toString())
@@ -73,4 +73,4 @@ router.get('/pair', async (req, res) => {
   }
 });
 
-export const poolRoutes = router;
+export default router;
