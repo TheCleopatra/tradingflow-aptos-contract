@@ -87,13 +87,10 @@ export async function checkBalanceManager(userAddress?: string) {
       console.log("余额管理器中没有任何代币余额");
     }
     
-    // 显示事件句柄信息
-    console.log("\n事件句柄信息:");
-    console.log(`存款事件: ${data.deposit_events.counter} 个事件`);
-    console.log(`提款事件: ${data.withdraw_events.counter} 个事件`);
-    console.log(`管理员存款事件: ${data.admin_deposit_events.counter} 个事件`);
-    console.log(`管理员提款事件: ${data.admin_withdraw_events.counter} 个事件`);
-    console.log(`交易信号事件: ${data.trade_signal_events.counter} 个事件`);
+    // 显示事件信息
+    console.log("\n事件信息:");
+    console.log("注意: 合约现在使用模块事件系统，事件不再存储在资源中。");
+    console.log("要查询事件，请使用 Aptos Explorer 或 GraphQL API。");
     
     return balanceManager;
   } catch (error) {

@@ -96,44 +96,44 @@ aptos move publish --named-addresses tradingflow_vault=<您的地址> --profile 
 2. **用户初始化余额管理器**（用户 cl5 操作）
 
    ```bash
-   pnpm ts-node initVault.ts
+   pnpm ts-node core/initVault.ts
    ```
 
 3. **存入代币**（用户 cl5 操作）
 
    ```bash
-   pnpm ts-node depositCoins.ts <元数据对象ID> <金额>
-   # 例如：pnpm ts-node depositCoins.ts 0x000000000000000000000000000000000000000000000000000000000000000a 1000000
+   pnpm ts-node core/depositCoins.ts <元数据对象ID> <金额>
+   # 例如：pnpm ts-node core/depositCoins.ts 0x000000000000000000000000000000000000000000000000000000000000000a 1000000
    # 其中 0x000000000000000000000000000000000000000000000000000000000000000a 是 APT 代币的元数据对象 ID
    ```
 
 4. **提取代币**（用户 cl5 操作）
 
    ```bash
-   pnpm ts-node withdrawCoins.ts <元数据对象ID> <金额>
-   # 例如：pnpm ts-node withdrawCoins.ts 0x000000000000000000000000000000000000000000000000000000000000000a 1000000
+   pnpm ts-node core/withdrawCoins.ts <元数据对象ID> <金额>
+   # 例如：pnpm ts-node core/withdrawCoins.ts 0x000000000000000000000000000000000000000000000000000000000000000a 1000000
    # 其中 0x000000000000000000000000000000000000000000000000000000000000000a 是 APT 代币的元数据对象 ID
    ```
 
 5. **发送交易信号**（管理员 cl6 操作）
 
    ```bash
-   pnpm ts-node tradeSignal.ts <用户地址> <源代币元数据对象ID> <目标代币元数据对象ID> <费率等级> <输入金额> <最小输出金额> <价格限制> <接收者地址> <截止时间戳>
-   # 例如：pnpm ts-node tradeSignal.ts 0x123...abc 0x000000000000000000000000000000000000000000000000000000000000000a 0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b 1 100 95 0 0x123...abc 1717027200
+   pnpm ts-node core/tradeSignal.ts <用户地址> <源代币元数据对象ID> <目标代币元数据对象ID> <费率等级> <输入金额> <最小输出金额> <价格限制> <截止时间戳>
+   # 例如：pnpm ts-node core/tradeSignal.ts 0x123...abc 0x000000000000000000000000000000000000000000000000000000000000000a 0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b 1 100 95 0 1717027200
    ```
 
 6. **管理员代表用户存款**（管理员 cl6 操作）
 
    ```bash
-   pnpm ts-node adminDeposit.ts <用户地址> <元数据对象ID> <金额>
-   # 例如：pnpm ts-node adminDeposit.ts 0x123...abc 0x000000000000000000000000000000000000000000000000000000000000000a 1000000
+   pnpm ts-node core/adminDeposit.ts <用户地址> <元数据对象ID> <金额>
+   # 例如：pnpm ts-node core/adminDeposit.ts 0x123...abc 0x000000000000000000000000000000000000000000000000000000000000000a 1000000
    ```
 
 7. **管理员代表用户提款**（管理员 cl6 操作）
 
    ```bash
-   pnpm ts-node adminWithdraw.ts <用户地址> <元数据对象ID> <金额>
-   # 例如：pnpm ts-node adminWithdraw.ts 0x123...abc 0x000000000000000000000000000000000000000000000000000000000000000a 1000000
+   pnpm ts-node core/adminWithdraw.ts <用户地址> <元数据对象ID> <金额>
+   # 例如：pnpm ts-node core/adminWithdraw.ts 0x123...abc 0x000000000000000000000000000000000000000000000000000000000000000a 1000000
    ```
 
 ## 合约功能详解

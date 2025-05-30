@@ -14,7 +14,6 @@ import { createAptosClient, createAccountFromPrivateKey, getContractAddress, wai
  * @param amountIn 输入金额
  * @param amountOutMin 最小输出金额
  * @param sqrtPriceLimit 价格限制的平方根 (通常设为0表示无限制)
- * @param recipient 接收者地址 (通常是用户自己的地址)
  * @param deadline 截止时间戳 (Unix 时间戳)
  */
 async function tradeSignal(
@@ -25,7 +24,6 @@ async function tradeSignal(
   amountIn: number,
   amountOutMin: number,
   sqrtPriceLimit: string,
-  recipient: string,
   deadline: number
 ) {
   try {
@@ -42,9 +40,8 @@ async function tradeSignal(
     console.log(`输入金额: ${amountIn}`);
     console.log(`最小输出金额: ${amountOutMin}`);
     
-    // 将用户地址和接收者地址转换为AccountAddress对象
+    // 将用户地址转换为AccountAddress对象
     const userAccountAddress = AccountAddress.from(userAddress);
-    const recipientAddress = AccountAddress.from(recipient);
     
     // 构建交易
     const transaction = await aptos.transaction.build.simple({
@@ -59,7 +56,6 @@ async function tradeSignal(
           amountIn,
           amountOutMin,
           sqrtPriceLimit,
-          recipientAddress,
           deadline
         ],
       },
@@ -84,9 +80,9 @@ async function tradeSignal(
 // 如果直接运行脚本，从命令行参数获取参数
 if (require.main === module) {
   const args = process.argv.slice(2);
-  if (args.length < 9) {
-    console.error("用法: pnpm ts-node core/tradeSignal.ts <用户地址> <源代币元数据对象ID> <目标代币元数据对象ID> <费率等级> <输入金额> <最小输出金额> <价格限制> <接收者地址> <截止时间戳>");
-    console.error("示例: pnpm ts-node core/tradeSignal.ts 0x123...abc " + TOKEN_METADATA.APT + " " + TOKEN_METADATA.USDC + " 1 100 95 0 0x123...abc " + Math.floor(Date.now() / 1000 + 3600));
+  if (args.length < 8) {
+    console.error("用法: pnpm ts-node core/tradeSignal.ts <用户地址> <源代币元数据对象ID> <目标代币元数据对象ID> <费率等级> <输入金额> <最小输出金额> <价格限制> <截止时间戳>");
+    console.error("示例: pnpm ts-node core/tradeSignal.ts 0x123...abc " + TOKEN_METADATA.APT + " " + TOKEN_METADATA.USDC + " 1 100 95 0 " + Math.floor(Date.now() / 1000 + 3600));
     console.error("常用代币元数据对象 ID:");
     console.error("  APT: " + TOKEN_METADATA.APT);
     console.error("  USDC: " + TOKEN_METADATA.USDC);
@@ -101,8 +97,7 @@ if (require.main === module) {
   const amountIn = parseInt(args[4], 10);
   const amountOutMin = parseInt(args[5], 10);
   const sqrtPriceLimit = args[6];
-  const recipient = args[7];
-  const deadline = parseInt(args[8], 10);
+  const deadline = parseInt(args[7], 10);
   
   if (isNaN(feeTier) || isNaN(amountIn) || isNaN(amountOutMin) || isNaN(deadline)) {
     console.error("费率等级、输入金额、最小输出金额和截止时间戳必须是有效的数字");
@@ -117,7 +112,6 @@ if (require.main === module) {
     amountIn,
     amountOutMin,
     sqrtPriceLimit,
-    recipient,
     deadline
   );
 }

@@ -78,7 +78,6 @@ async function runIntegrationTest1() {
     // 使用一个有效的 sqrtPriceLimit 值，而不是 "0"
     // 这个值代表一个非常大的价格限制，实际上相当于无限制
     const sqrtPriceLimit = "4295128740"; // 一个大的数值，代表极高的价格限制
-    const recipient = userAddress; // 接收者地址
     const deadline = Math.floor(Date.now() / 1000) + 60; // 截止时间为当前时间 + 1 分钟
 
     console.log(`\n管理员 ${adminAddress} 代表用户 ${userAddress} 发送交易信号`);
@@ -92,7 +91,6 @@ async function runIntegrationTest1() {
       amountIn,
       amountOutMin,
       sqrtPriceLimit,
-      recipient,
       deadline
     );
 
