@@ -3,7 +3,7 @@ declare module '@hyperionxyz/sdk' {
 
   export interface HyperionSDKConfig {
     network: Network;
-    APTOS_API_KEY: string;
+    APTOS_API_KEY: string; // 使用APTOS_GRAPHQL_API_KEY作为值
   }
 
   export function initHyperionSDK(config: HyperionSDKConfig): HyperionSDK;

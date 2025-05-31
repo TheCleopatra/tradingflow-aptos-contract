@@ -15,7 +15,7 @@ async function getAptMetadataId() {
     // 初始化 Hyperion SDK
     const sdk = initHyperionSDK({
       network: Network.MAINNET,
-      APTOS_API_KEY: process.env.APTOS_API_KEY || ''
+      APTOS_API_KEY: process.env.APTOS_GRAPHQL_API_KEY || ''
     });
     
     console.log('正在获取所有池子...');

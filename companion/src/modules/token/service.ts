@@ -63,8 +63,6 @@ export async function getTokenMetadata(address: string): Promise<TokenMetadata |
     // 初始化 Aptos 客户端
     const config = new AptosConfig({
       network: Network.MAINNET,
-      fullnode: process.env.APTOS_NODE_URL,
-      indexer: process.env.APTOS_NODE_URL
     });
     const aptos = new Aptos(config);
 

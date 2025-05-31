@@ -3,10 +3,11 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { Network } from "@aptos-labs/ts-sdk";
 import { initHyperionSDK } from '@hyperionxyz/sdk';
-import { tokenRoute, hyperionDexRoute } from './modules';
 
 // 加载环境变量
 dotenv.config();
+
+import { tokenRoute, hyperionDexRoute, tfVaultRoute } from './modules';
 
 // 初始化 Express 应用
 const app = express();
@@ -19,12 +20,13 @@ app.use(express.json());
 // 初始化 Hyperion SDK
 export const sdk = initHyperionSDK({
   network: Network.MAINNET,
-  APTOS_API_KEY: process.env.APTOS_API_KEY || ''
+  APTOS_API_KEY: process.env.APTOS_GRAPHQL_API_KEY || ''
 });
 
 // 路由
 app.use('/aptos/api/tokens', tokenRoute);
 app.use('/aptos/api/pools', hyperionDexRoute);
+app.use('/aptos/api/tf_vault', tfVaultRoute);
 
 // 根路由
 app.get('/', (req, res) => {
